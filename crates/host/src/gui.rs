@@ -388,6 +388,11 @@ impl App {
 
         ui_style::apply_chrome(&window);
         ui_style::apply_chrome(&settings_window);
+        ui_style::send_to_back(&header_bg.handle);
+        ui_style::send_to_back(&footer_bg.handle);
+        ui_style::send_to_back(&header_line.handle);
+        ui_style::send_to_back(&footer_line.handle);
+        ui_style::send_to_back(&body_divider.handle);
 
         let app = Rc::new(App {
             window,

@@ -61,7 +61,7 @@ powershell -ExecutionPolicy Bypass -File packaging\make_release.ps1
 
 `dist\ExtensionChange-0.1.4.zip` ができます。中身は MSIX、公開証明書（`.cer`）、`install_prebuilt.ps1` です。受け取った人は zip を展開して `install_prebuilt.ps1` を管理者で実行します。証明書は zip に含まれるので、受け取る側で証明書を用意する必要はありません。秘密鍵は含まれません。
 
-既存の MSIX と証明書を使う場合は `-Build` を付けません。ビルドし直す場合は `-Build` を付けます。`-Build` は管理者権限が必要です。
+既存の MSIX と証明書を使う場合は `-Build` を付けません。ビルドし直す場合は `-Build` を付けます。ビルド自体に管理者権限は不要です。インストール時に証明書を信頼するため管理者権限が必要です。
 
 アンインストール:
 

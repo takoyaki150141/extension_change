@@ -6,8 +6,8 @@ use windows::Win32::Graphics::Dwm::{DwmSetWindowAttribute, DWMWA_WINDOW_CORNER_P
 use windows::Win32::Graphics::Gdi::{GetSysColor, COLOR_HIGHLIGHT};
 use windows::Win32::UI::WindowsAndMessaging::{
     GetSystemMetrics, GetWindowLongW, SendMessageW, SetForegroundWindow, SetWindowLongW,
-    SetWindowPos, GWL_STYLE, SM_CXSCREEN, SM_CYSCREEN, SWP_FRAMECHANGED, SWP_NOMOVE, SWP_NOSIZE,
-    SWP_NOZORDER, WS_MAXIMIZEBOX, WS_THICKFRAME,
+    SetWindowPos, GWL_STYLE, HWND_BOTTOM, SM_CXSCREEN, SM_CYSCREEN, SWP_FRAMECHANGED, SWP_NOACTIVATE,
+    SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, WS_MAXIMIZEBOX, WS_THICKFRAME,
 };
 
 pub const BG_RGB: [u8; 3] = [240, 240, 240];
@@ -32,6 +32,22 @@ pub fn center(width: i32, height: i32) -> (i32, i32) {
 
 pub fn hwnd(window: &nwg::Window) -> Option<HWND> {
     window.handle.hwnd().map(|h| HWND(h as *mut c_void))
+}
+
+pub fn send_to_back(handle: &nwg::ControlHandle) {
+    if let Some(hwnd) = handle.hwnd() {
+        unsafe {
+            let _ = SetWindowPos(
+                HWND(hwnd as *mut c_void),
+                Some(HWND_BOTTOM),
+                0,
+                0,
+                0,
+                0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
+            );
+        }
+    }
 }
 
 pub fn bring_to_front(window: &nwg::Window) {

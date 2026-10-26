@@ -1,24 +1,8 @@
 ﻿param(
-    [switch]$Build,
-    [switch]$NoElevate
+    [switch]$Build
 )
 
 $ErrorActionPreference = "Stop"
-
-function Test-Admin {
-    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
-    $principal = New-Object Security.Principal.WindowsPrincipal($identity)
-    return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-}
-
-if ($Build -and -not (Test-Admin)) {
-    if ($NoElevate) {
-        throw "ビルドする場合は管理者権限で実行してください。"
-    }
-    $arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`" -Build"
-    Start-Process "powershell.exe" -ArgumentList $arguments -Verb RunAs
-    exit
-}
 
 $Root = Split-Path $PSScriptRoot -Parent
 $DataDir = Join-Path $env:LOCALAPPDATA "ExtensionChange"
@@ -28,10 +12,7 @@ $Msix = Join-Path $DataDir "ExtensionChange.msix"
 $Cer = Join-Path $DataDir "dev.cer"
 
 if ($Build) {
-    & (Join-Path $PSScriptRoot "install.ps1") -BuildOnly -NoElevate
-    if ($LASTEXITCODE -ne 0) {
-        throw "install.ps1 -BuildOnly に失敗しました。"
-    }
+    & (Join-Path $PSScriptRoot "build_prebuilt.ps1")
 }
 
 if (-not (Test-Path -LiteralPath $Msix)) {
@@ -50,7 +31,9 @@ Copy-Item -LiteralPath $Msix -Destination (Join-Path $Release "ExtensionChange.m
 Copy-Item -LiteralPath $Cer -Destination (Join-Path $Release "ExtensionChange.cer") -Force
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot "install_prebuilt.ps1") -Destination $Release -Force
 
-$zip = Join-Path $Dist "ExtensionChange-0.1.4.zip"
+$manifest = [xml](Get-Content (Join-Path $PSScriptRoot "AppxManifest.xml") -Raw)
+$version = (($manifest.Package.Identity.Version -split '\.')[0..2] -join '.')
+$zip = Join-Path $Dist "ExtensionChange-$version.zip"
 Remove-Item -LiteralPath $zip -Force -ErrorAction SilentlyContinue
 Compress-Archive -Path (Join-Path $Release "*") -DestinationPath $zip -Force
 

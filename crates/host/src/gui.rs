@@ -368,7 +368,7 @@ impl App {
 
         let mut version_label = nwg::Label::default();
         nwg::Label::builder()
-            .text("v0.2.0")
+            .text("v0.2.1")
             .position((734, 496))
             .size((150, 20))
             .parent(&window)
@@ -388,6 +388,8 @@ impl App {
 
         ui_style::apply_chrome(&window);
         ui_style::apply_chrome(&settings_window);
+        ui_style::set_window_background(&window, [255, 255, 255]);
+        ui_style::set_window_background(&settings_window, [255, 255, 255]);
         ui_style::send_to_back(&header_bg.handle);
         ui_style::send_to_back(&footer_bg.handle);
         ui_style::send_to_back(&header_line.handle);

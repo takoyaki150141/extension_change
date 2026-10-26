@@ -1,13 +1,14 @@
 use std::ffi::c_void;
 
 use native_windows_gui as nwg;
-use windows::Win32::Foundation::{HWND, LPARAM, WPARAM};
+use windows::Win32::Foundation::{COLORREF, HWND, LPARAM, WPARAM};
 use windows::Win32::Graphics::Dwm::{DwmSetWindowAttribute, DWMWA_WINDOW_CORNER_PREFERENCE};
-use windows::Win32::Graphics::Gdi::{GetSysColor, COLOR_HIGHLIGHT};
+use windows::Win32::Graphics::Gdi::{CreateSolidBrush, GetSysColor, InvalidateRect, COLOR_HIGHLIGHT};
 use windows::Win32::UI::WindowsAndMessaging::{
-    GetSystemMetrics, GetWindowLongW, SendMessageW, SetForegroundWindow, SetWindowLongW,
-    SetWindowPos, GWL_STYLE, HWND_BOTTOM, HWND_TOP, SM_CXSCREEN, SM_CYSCREEN, SWP_FRAMECHANGED,
-    SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, WS_CLIPSIBLINGS, WS_MAXIMIZEBOX, WS_THICKFRAME,
+    GetSystemMetrics, GetWindowLongW, SendMessageW, SetClassLongPtrW,
+    SetForegroundWindow, SetWindowLongW, SetWindowPos, GCLP_HBRBACKGROUND, GWL_STYLE, HWND_BOTTOM,
+    HWND_TOP, SM_CXSCREEN, SM_CYSCREEN, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE,
+    SWP_NOZORDER, WS_CLIPSIBLINGS, WS_MAXIMIZEBOX, WS_THICKFRAME,
 };
 
 pub const BG_RGB: [u8; 3] = [255, 255, 255];
@@ -47,6 +48,21 @@ pub fn send_to_back(handle: &nwg::ControlHandle) {
                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
             );
         }
+    }
+}
+
+pub fn set_window_background(window: &nwg::Window, rgb: [u8; 3]) {
+    let Some(hwnd) = hwnd(window) else {
+        return;
+    };
+    unsafe {
+        let color = (rgb[0] as u32) | ((rgb[1] as u32) << 8) | ((rgb[2] as u32) << 16);
+        let brush = CreateSolidBrush(COLORREF(color));
+        if brush.is_invalid() {
+            return;
+        }
+        SetClassLongPtrW(hwnd, GCLP_HBRBACKGROUND, brush.0 as isize);
+        let _ = InvalidateRect(Some(hwnd), None, true);
     }
 }
 

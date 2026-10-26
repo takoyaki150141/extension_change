@@ -40,27 +40,16 @@ Windows 11 の右クリックメニューからファイルを変換するツー
 - Windows 11 22H2 以降
 - インストール時の管理者権限
 - ビルドする場合: Rust stable (MSVC)、Windows SDK、Go（`schem-convert.exe` を再ビルドするときだけ）
-- MSI を作る場合: WiX（`dotnet tool install --global wix --version 5.0.2`）
 
 利用者側に FFmpeg、Python、Go のインストールは不要です。FFmpeg と `schem-convert.exe` はパッケージに同梱します。
 
 ## インストール
 
-MSIX を直接入れる場合:
-
 ```powershell
 powershell -ExecutionPolicy Bypass -File packaging\install.ps1
 ```
 
-MSI を作る場合:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File packaging\build_msi.ps1
-```
-
-`dist\ExtensionChange.msi` ができます。MSI を実行して UAC を承認してください。
-
-Windows 11 の新しい右クリックメニューは、パッケージ ID を持つ MSIX でしか登録できません。MSI は MSIX を内部でインストールする形にしています。
+Windows 11 の新しい右クリックメニューは、パッケージ ID を持つ MSIX で登録します。
 
 アンインストール:
 
@@ -158,7 +147,7 @@ crates/host      Win32 GUI、QuickJS 実行、画像・動画・音声・フォ�
 crates/shell_ext IExplorerCommand の COM DLL
 plugins/         同梱プラグイン
 tools/schem-convert  Minecraft 構造物の変換ヘルパー（Go）
-packaging/       MSIX マニフェスト、インストーラ、MSI 定義
+packaging/       MSIX マニフェスト、インストーラ
 ```
 
 GUI は `native-windows-gui` で組んだネイティブ Win32 です。WebView と GPU を使わないため、常駐メモリは小さく済みます。

@@ -3,6 +3,22 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum Runtime {
+    #[default]
+    Js,
+    Native,
+    Csharp,
+    Rust,
+}
+
+impl Runtime {
+    pub fn is_native(self) -> bool {
+        !matches!(self, Runtime::Js)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Manifest {
     pub id: String,
@@ -13,6 +29,8 @@ pub struct Manifest {
     pub extensions: Vec<String>,
     #[serde(default)]
     pub actions: Vec<Action>,
+    #[serde(default)]
+    pub runtime: Runtime,
     pub entry: String,
 }
 
@@ -58,6 +76,10 @@ impl ActionEntry {
 impl Plugin {
     pub fn entry_path(&self) -> PathBuf {
         self.dir.join(&self.manifest.entry)
+    }
+
+    pub fn is_native(&self) -> bool {
+        self.manifest.runtime.is_native()
     }
 
     pub fn actions(&self) -> Vec<Action> {

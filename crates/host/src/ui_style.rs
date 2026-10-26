@@ -10,7 +10,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
     SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, WS_CLIPSIBLINGS, WS_MAXIMIZEBOX, WS_THICKFRAME,
 };
 
-pub const BG_RGB: [u8; 3] = [240, 240, 240];
+pub const BG_RGB: [u8; 3] = [255, 255, 255];
 
 pub fn accent_rgb() -> [u8; 3] {
     let color = unsafe { GetSysColor(COLOR_HIGHLIGHT) };

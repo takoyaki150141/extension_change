@@ -10,7 +10,7 @@
   <Identity
     Name="ExtensionChange"
     Publisher="CN=ExtensionChange"
-    Version="0.1.5.0"
+    Version="0.2.0.0"
     ProcessorArchitecture="x64" />
 
   <Properties>

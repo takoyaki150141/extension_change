@@ -1,8 +1,11 @@
 use std::collections::HashSet;
+use std::io::{BufRead, BufReader, Read, Write};
 use std::os::windows::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::sync::mpsc::{self, RecvTimeoutError};
 use std::sync::Arc;
+use std::thread;
 use std::time::{Duration, Instant};
 
 use anyhow::{anyhow, bail, Context as _};
@@ -29,6 +32,10 @@ pub fn run_job(
     output_dir: Option<PathBuf>,
     emit: Emit,
 ) -> anyhow::Result<()> {
+    if action.plugin.is_native() {
+        return run_native(action, files, output_dir, emit);
+    }
+
     let entry = action.plugin.entry_path();
     let source = std::fs::read_to_string(&entry)
         .with_context(|| format!("plugin entry not found: {}", entry.display()))?;
@@ -48,20 +55,7 @@ pub fn run_job(
         emit: emit.clone(),
     });
 
-    let files_json = serde_json::to_string(
-        &files
-            .iter()
-            .map(|p| {
-                let size = std::fs::metadata(p).map(|m| m.len()).unwrap_or(0);
-                serde_json::json!({
-                    "name": p.file_name().and_then(|n| n.to_str()).unwrap_or(""),
-                    "path": p.to_string_lossy(),
-                    "ext": p.extension().and_then(|e| e.to_str()).unwrap_or("").to_ascii_lowercase(),
-                    "size": size
-                })
-            })
-            .collect::<Vec<_>>(),
-    )?;
+    let files_json = serde_json::to_string(&files_payload(files))?;
 
     let (tx, rx) = std::sync::mpsc::channel::<anyhow::Result<()>>();
     let action_id = action.action.id.clone();
@@ -78,6 +72,182 @@ pub fn run_job(
         Ok(result) => result,
         Err(_) => Err(anyhow!("plugin timed out")),
     }
+}
+
+fn run_native(
+    action: &ActionEntry,
+    files: &[PathBuf],
+    output_dir: Option<PathBuf>,
+    emit: Emit,
+) -> anyhow::Result<()> {
+    let entry = action.plugin.entry_path();
+    if !entry.is_file() {
+        bail!("native plugin entry not found: {}", entry.display());
+    }
+    if files.is_empty() {
+        bail!("no input files");
+    }
+
+    let host_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(Path::to_path_buf))
+        .unwrap_or_else(|| PathBuf::from("."));
+    let request = serde_json::json!({
+        "protocol": 1,
+        "pluginId": action.plugin.manifest.id,
+        "pluginName": action.plugin.manifest.name,
+        "actionId": action.action.id,
+        "actionName": action.action.name,
+        "pluginDir": action.plugin.dir,
+        "hostDir": host_dir,
+        "ffmpeg": ffmpeg_path(),
+        "outputDir": output_dir,
+        "files": files_payload(files),
+    });
+
+    let mut child = Command::new(&entry)
+        .current_dir(&action.plugin.dir)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .creation_flags(0x0800_0000)
+        .spawn()
+        .with_context(|| format!("native plugin failed to start: {}", entry.display()))?;
+
+    {
+        let mut stdin = child.stdin.take().context("native plugin stdin unavailable")?;
+        stdin
+            .write_all(request.to_string().as_bytes())
+            .with_context(|| format!("failed to send request to {}", entry.display()))?;
+    }
+
+    let stdout = child.stdout.take().context("native plugin stdout unavailable")?;
+    let (tx, rx) = mpsc::channel::<String>();
+    let reader = thread::spawn(move || {
+        for line in BufReader::new(stdout).lines() {
+            match line {
+                Ok(line) => {
+                    if tx.send(line).is_err() {
+                        break;
+                    }
+                }
+                Err(_) => break,
+            }
+        }
+    });
+
+    let stderr = child.stderr.take().context("native plugin stderr unavailable")?;
+    let stderr_reader = thread::spawn(move || {
+        let mut buf = Vec::new();
+        let _ = BufReader::new(stderr).read_to_end(&mut buf);
+        String::from_utf8_lossy(&buf).into_owned()
+    });
+
+    let deadline = Instant::now() + TIME_LIMIT;
+    let mut plugin_error: Option<String> = None;
+
+    loop {
+        let now = Instant::now();
+        if now >= deadline {
+            let _ = child.kill();
+            let _ = child.wait();
+            let _ = reader.join();
+            let _ = stderr_reader.join();
+            bail!("native plugin timed out: {}", entry.display());
+        }
+        match rx.recv_timeout((deadline - now).min(Duration::from_millis(250))) {
+            Ok(line) => handle_native_line(&line, &emit, &mut plugin_error),
+            Err(RecvTimeoutError::Timeout) => {}
+            Err(RecvTimeoutError::Disconnected) => break,
+        }
+    }
+
+    let remaining = deadline.saturating_duration_since(Instant::now());
+    let status = match child.wait_timeout(remaining)? {
+        Some(status) => status,
+        None => {
+            let _ = child.kill();
+            let _ = child.wait();
+            let _ = reader.join();
+            let _ = stderr_reader.join();
+            bail!("native plugin timed out: {}", entry.display());
+        }
+    };
+    let _ = reader.join();
+    let stderr_text = stderr_reader.join().unwrap_or_default();
+    let stderr_text = stderr_text.trim();
+
+    if let Some(message) = plugin_error {
+        if stderr_text.is_empty() {
+            bail!("{message}");
+        }
+        bail!("{message}\n{stderr_text}");
+    }
+    if !status.success() {
+        if stderr_text.is_empty() {
+            bail!("native plugin exited with {status}");
+        }
+        bail!("native plugin exited with {status}: {stderr_text}");
+    }
+
+    Ok(())
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+enum NativeEvent {
+    Log {
+        message: String,
+    },
+    Progress {
+        value: f64,
+    },
+    Done {
+        input: String,
+        output: String,
+    },
+    Error {
+        message: String,
+    },
+}
+
+fn handle_native_line(line: &str, emit: &Emit, plugin_error: &mut Option<String>) {
+    let line = line.trim().trim_start_matches('\u{feff}').trim();
+    if line.is_empty() {
+        return;
+    }
+    match serde_json::from_str::<NativeEvent>(line) {
+        Ok(NativeEvent::Log { message }) => emit(JobEvent::Log(message)),
+        Ok(NativeEvent::Progress { value }) => {
+            emit(JobEvent::Progress(value.clamp(0.0, 1.0) as f32))
+        }
+        Ok(NativeEvent::Done { input, output }) => emit(JobEvent::FileDone {
+            input: PathBuf::from(input),
+            output: PathBuf::from(output),
+        }),
+        Ok(NativeEvent::Error { message }) => {
+            emit(JobEvent::Log(message.clone()));
+            if plugin_error.is_none() {
+                *plugin_error = Some(message);
+            }
+        }
+        Err(_) => emit(JobEvent::Log(line.to_string())),
+    }
+}
+
+fn files_payload(files: &[PathBuf]) -> Vec<serde_json::Value> {
+    files
+        .iter()
+        .map(|p| {
+            let size = std::fs::metadata(p).map(|m| m.len()).unwrap_or(0);
+            serde_json::json!({
+                "name": p.file_name().and_then(|n| n.to_str()).unwrap_or(""),
+                "path": p.to_string_lossy(),
+                "ext": p.extension().and_then(|e| e.to_str()).unwrap_or("").to_ascii_lowercase(),
+                "size": size
+            })
+        })
+        .collect()
 }
 
 fn run_js(

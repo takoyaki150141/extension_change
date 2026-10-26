@@ -1,0 +1,11 @@
+{
+  "id": "csharp-copy",
+  "name": "C# Copy",
+  "description": "C# native plugin template that copies files",
+  "extensions": ["txt"],
+  "actions": [
+    { "id": "copy", "name": "Copy" }
+  ],
+  "runtime": "csharp",
+  "entry": "Plugin.exe"
+}

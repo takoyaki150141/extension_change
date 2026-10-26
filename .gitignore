@@ -6,3 +6,6 @@
 *.log
 *.pfx
 *.msix
+/templates/*/target
+/templates/*/bin
+/templates/*/obj

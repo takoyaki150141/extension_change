@@ -1,0 +1,11 @@
+{
+  "id": "rust-copy",
+  "name": "Rust Copy",
+  "description": "Rust native plugin template that copies files",
+  "extensions": ["txt"],
+  "actions": [
+    { "id": "copy", "name": "Copy" }
+  ],
+  "runtime": "rust",
+  "entry": "plugin.exe"
+}

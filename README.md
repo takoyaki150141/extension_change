@@ -1,6 +1,6 @@
 # Extension Change
 
-Windows 11 の右クリックメニューからファイルを変換するツールです。画像、動画、音声、フォント、Minecraft の構造物に対応しています。変換の手順は JS プラグインで追加できます。
+Windows 11 の右クリックメニューからファイルを変換するツールです。画像、動画、音声、フォント、Minecraft の構造物に対応しています。変換の手順は JS プラグインで追加できます。C# と Rust のネイティブプラグインにも対応しています。
 
 ## 対応形式
 
@@ -59,7 +59,7 @@ Windows 11 の新しい右クリックメニューは、パッケージ ID を�
 powershell -ExecutionPolicy Bypass -File packaging\make_release.ps1
 ```
 
-`dist\ExtensionChange-0.1.5.zip` ができます。中身は MSIX、公開証明書（`.cer`）、`install_prebuilt.ps1` です。受け取った人は zip を展開して `install_prebuilt.ps1` を管理者で実行します。証明書は zip に含まれるので、受け取る側で証明書を用意する必要はありません。秘密鍵は含まれません。
+`dist\ExtensionChange-0.2.0.zip` ができます。中身は MSIX、公開証明書（`.cer`）、`install_prebuilt.ps1` です。受け取った人は zip を展開して `install_prebuilt.ps1` を管理者で実行します。証明書は zip に含まれるので、受け取る側で証明書を用意する必要はありません。秘密鍵は含まれません。
 
 既存の MSIX と証明書を使う場合は `-Build` を付けません。ビルドし直す場合は `-Build` を付けます。ビルド自体に管理者権限は不要です。インストール時に証明書を信頼するため管理者権限が必要です。
 
@@ -92,8 +92,7 @@ powershell -ExecutionPolicy Bypass -File packaging\uninstall.ps1
 
 同梱プラグインはパッケージ内の `plugins` にあります。追加のプラグインは `%LOCALAPPDATA%\ExtensionChange\plugins\<id>\` に置きます。
 
-- `plugin.json`
-- `index.js`
+JS プラグインは `plugin.json` と `index.js`、ネイティブプラグインは `plugin.json` と `entry` の exe を置きます。
 
 `plugin.json` の例:
 
@@ -109,6 +108,8 @@ powershell -ExecutionPolicy Bypass -File packaging\uninstall.ps1
   "entry": "index.js"
 }
 ```
+
+`runtime` を省略すると `js` になります。値は `js`、`native`、`csharp`、`rust` のいずれかです。`csharp` と `rust` はどちらもネイティブプラグインとして扱い、プラグインの exe をホストが起動します。
 
 `index.js` は関数を1つ export します。
 
@@ -149,15 +150,95 @@ module.exports = function (ctx) {
 
 構造物の `format` は `litematica`、`schem`、`bp`、`nbt`、`schematic` です。
 
-プラグインは QuickJS の sandbox で動きます。ファイルの読み書き、ネットワーク、環境変数、プロセス起動は API に出していません。1回の実行にメモリ 64MB、時間 30分の上限を掛けています。
+JS プラグインは QuickJS の sandbox で動きます。ファイルの読み書き、ネットワーク、環境変数、プロセス起動は API に出していません。
+
+### C# / Rust のネイティブプラグイン
+
+`templates/csharp-plugin` と `templates/rust-plugin` に入力ファイルをコピーする雛形があります。exe はプラグインのフォルダに置きます。
+
+C# のビルド:
+
+```powershell
+cd templates\csharp-plugin
+dotnet publish -c Release
+$dst = "$env:LOCALAPPDATA\ExtensionChange\plugins\my-native"
+New-Item -ItemType Directory -Force $dst
+Copy-Item bin\Release\net8.0\win-x64\publish\Plugin.exe $dst
+Copy-Item plugin.json $dst
+```
+
+`dotnet publish` は自己完結の単一 exe を作るので、利用者に .NET のインストールは要りません。NativeAOT にする場合は `-p:PublishAot=true` を付けます。
+
+Rust のビルド:
+
+```powershell
+cd templates\rust-plugin
+cargo build --release
+$dst = "$env:LOCALAPPDATA\ExtensionChange\plugins\my-native"
+New-Item -ItemType Directory -Force $dst
+Copy-Item target\release\plugin.exe $dst
+Copy-Item plugin.json $dst
+```
+
+ネイティブプラグインの `plugin.json`:
+
+```json
+{
+  "id": "my-native",
+  "name": "My Native",
+  "extensions": ["txt"],
+  "actions": [
+    { "id": "copy", "name": "Copy" }
+  ],
+  "runtime": "rust",
+  "entry": "plugin.exe"
+}
+```
+
+`entry` はプラグインのフォルダからの相対パスで、exe を指定します。
+
+ホストはプラグインの exe を起動し、stdin に JSON を1つ渡します。プラグインは stdout に1行1イベントの JSON を返します。stderr は失敗時のエラー表示に使います。
+
+要求:
+
+```json
+{
+  "protocol": 1,
+  "pluginId": "my-native",
+  "pluginName": "My Native",
+  "actionId": "copy",
+  "actionName": "Copy",
+  "pluginDir": "C:\\...\\plugins\\my-native",
+  "hostDir": "C:\\Program Files\\WindowsApps\\...",
+  "ffmpeg": "C:\\...\\ffmpeg.exe",
+  "outputDir": null,
+  "files": [
+    { "name": "a.txt", "path": "C:\\...\\a.txt", "ext": "txt", "size": 12 }
+  ]
+}
+```
+
+返すイベント:
+
+```json
+{"type":"log","message":"copied a.txt"}
+{"type":"progress","value":0.5}
+{"type":"done","input":"C:\\...\\a.txt","output":"C:\\...\\a-copy.txt"}
+{"type":"error","message":"..."}
+```
+
+`done` の `input` と `output` は絶対パスにします。`outputDir` が null のときは、入力ファイルと同じフォルダへ出力します。イベント以外の行はログとして扱います。
+
+ネイティブプラグインはホストと同じ権限で動きます。ファイル、ネットワーク、プロセス起動、Win32 API を自由に使えます。その代わり、JS の sandbox はありません。信頼できるプラグインだけを入れてください。
 
 ## 構成
 
 ```
 crates/core      マニフェスト、設定、プラグイン探索
-crates/host      Win32 GUI、QuickJS 実行、画像・動画・音声・フォント変換
+crates/host      Win32 GUI、QuickJS / ネイティブ実行、画像・動画・音声・フォント変換
 crates/shell_ext IExplorerCommand の COM DLL
 plugins/         同梱プラグイン
+templates/       C# / Rust のプラグイン雛形
 tools/schem-convert  Minecraft 構造物の変換ヘルパー（Go）
 packaging/       MSIX マニフェスト、インストーラ
 ```
@@ -176,9 +257,11 @@ GUI は `native-windows-gui` で組んだネイティブ Win32 です。WebView 
 
 ## セキュリティ
 
-プラグインは信頼して実行する前提ですが、能力はホストが渡した関数だけに限られます。変換できる入力は右クリックで選ばれたファイルだけで、出力先も GUI で指定した場所か元のフォルダに限ります。
+JS プラグインは QuickJS の sandbox で動き、能力はホストが渡した関数だけに限られます。変換できる入力は右クリックで選ばれたファイルだけで、出力先も GUI で指定した場所か元のフォルダに限ります。1回の実行にメモリ 64MB、時間 30分の上限を掛けています。
 
-同梱の `schem-convert.exe` は固定の引数で呼びます。プラグインから任意のコマンドは実行できません。
+C# / Rust のネイティブプラグインは別プロセスで動きますが、sandbox はありません。ホストと同じユーザー権限でファイル、ネットワーク、プロセス起動を使えます。信頼できるプラグインだけを入れてください。ホストは 30分でプラグインを停止します。
+
+同梱の `schem-convert.exe` は固定の引数で呼びます。JS プラグインから任意のコマンドは実行できません。
 
 配布する場合、自己署名証明書の信頼を利用者に求めます。証明書を配りたくない場合は、正規のコード署名証明書を用意してください。
 

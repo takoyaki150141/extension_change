@@ -368,7 +368,7 @@ impl App {
 
         let mut version_label = nwg::Label::default();
         nwg::Label::builder()
-            .text("v0.1.5")
+            .text("v0.2.0")
             .position((734, 496))
             .size((150, 20))
             .parent(&window)

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package
+    Name="Extension Change"
+    Manufacturer="ExtensionChange"
+    Version="$(var.Version)"
+    UpgradeCode="{7E7A1E3A-5D2B-4C1E-9F4A-2B8C6D0E1F23}"
+    Scope="perMachine">
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Extension Change is already installed." />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="none" />
+
+    <StandardDirectory Id="CommonAppDataFolder">
+      <Directory Id="INSTALLFOLDER" Name="ExtensionChange" />
+    </StandardDirectory>
+
+    <Feature Id="Main" Title="Extension Change" Level="1">
+      <ComponentGroupRef Id="Payload" />
+    </Feature>
+
+    <ComponentGroup Id="Payload" Directory="INSTALLFOLDER">
+      <Component Id="PayloadComponent" Guid="{3C1D5E7F-9A2B-4C3D-8E4F-5A6B7C8D9E0F}">
+        <File Id="MsixFile" Source="$(var.MsixPath)" />
+        <File Id="CerFile" Source="$(var.CerPath)" />
+      </Component>
+    </ComponentGroup>
+
+    <CustomAction
+      Id="ImportCert"
+      Directory="SystemFolder"
+      ExeCommand="certutil.exe -f -addstore TrustedPeople &quot;[INSTALLFOLDER]dev.cer&quot;"
+      Execute="immediate"
+      Return="check" />
+
+    <CustomAction
+      Id="InstallPackage"
+      Directory="SystemFolder"
+      ExeCommand="&quot;[SystemFolder]WindowsPowerShell\v1.0\powershell.exe&quot; -NoProfile -ExecutionPolicy Bypass -Command &quot;Get-Process -Name ExtensionChange -ErrorAction SilentlyContinue | Stop-Process -Force; Get-AppxPackage -Name ExtensionChange | Remove-AppxPackage; Add-AppxPackage -Path '[INSTALLFOLDER]ExtensionChange.msix' -ForceApplicationShutdown&quot;"
+      Execute="immediate"
+      Return="check" />
+
+    <CustomAction
+      Id="RemovePackage"
+      Directory="SystemFolder"
+      ExeCommand="&quot;[SystemFolder]WindowsPowerShell\v1.0\powershell.exe&quot; -NoProfile -ExecutionPolicy Bypass -Command &quot;Get-AppxPackage -Name ExtensionChange | Remove-AppxPackage&quot;"
+      Execute="immediate"
+      Return="ignore" />
+
+    <InstallExecuteSequence>
+      <Custom Action="ImportCert" After="InstallFiles" Condition="NOT REMOVE" />
+      <Custom Action="InstallPackage" After="ImportCert" Condition="NOT REMOVE" />
+      <Custom Action="RemovePackage" Before="RemoveFiles" Condition="REMOVE=&quot;ALL&quot;" />
+    </InstallExecuteSequence>
+  </Package>
+</Wix>

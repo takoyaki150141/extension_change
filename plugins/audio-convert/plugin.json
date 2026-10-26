@@ -1,0 +1,15 @@
+{
+  "id": "audio-convert",
+  "name": "音声変換",
+  "description": "音声を MP3 / WAV / FLAC / OGG / M4A / OPUS に変換します。FFmpeg が必要です。",
+  "extensions": ["mp3", "wav", "flac", "ogg", "oga", "m4a", "aac", "opus", "wma", "aiff", "aif"],
+  "actions": [
+    { "id": "mp3", "name": "MP3に変換" },
+    { "id": "wav", "name": "WAVに変換" },
+    { "id": "flac", "name": "FLACに変換" },
+    { "id": "ogg", "name": "OGGに変換" },
+    { "id": "m4a", "name": "M4Aに変換" },
+    { "id": "opus", "name": "OPUSに変換" }
+  ],
+  "entry": "index.js"
+}

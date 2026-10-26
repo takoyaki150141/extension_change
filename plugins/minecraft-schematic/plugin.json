@@ -1,0 +1,14 @@
+{
+  "id": "minecraft-schematic",
+  "name": "Minecraft構造物",
+  "description": "NBT / Litematica / Sponge / MCEdit / Axiom (.bp) を変換します。",
+  "extensions": ["litematic", "schem", "schematic", "nbt", "bp", "axiom"],
+  "actions": [
+    { "id": "litematica", "name": "Litematicaに変換" },
+    { "id": "schem", "name": "WorldEdit (.schem)に変換" },
+    { "id": "bp", "name": "Axiom (.bp)に変換" },
+    { "id": "nbt", "name": "構造物 (.nbt)に変換" },
+    { "id": "schematic", "name": "MCEdit (.schematic)に変換" }
+  ],
+  "entry": "index.js"
+}

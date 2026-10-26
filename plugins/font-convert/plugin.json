@@ -1,0 +1,13 @@
+{
+  "id": "font-convert",
+  "name": "フォント変換",
+  "description": "TTF / OTF / WOFF / WOFF2 を変換します。Python と fontTools が必要です。",
+  "extensions": ["ttf", "otf", "woff", "woff2"],
+  "actions": [
+    { "id": "ttf", "name": "TTFに変換" },
+    { "id": "otf", "name": "OTFに変換" },
+    { "id": "woff", "name": "WOFFに変換" },
+    { "id": "woff2", "name": "WOFF2に変換" }
+  ],
+  "entry": "index.js"
+}

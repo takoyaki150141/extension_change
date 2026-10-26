@@ -1,0 +1,4 @@
+github.com/oriumgames/nbt v0.2.0 h1:cp1Z4p5M77F9aUPF6m7PRd+kRnhzY3Gb6my2/iKQzzc=
+github.com/oriumgames/nbt v0.2.0/go.mod h1:3ZfSkQQjEVjDrygB1vhW6tUAIhXtFKBthg6Q1zk1qtA=
+github.com/oriumgames/schem/format v0.2.3 h1:auXtXrbZ7jjKan4pg6faYM64KV1Qa9pCQLsT9UDKoYU=
+github.com/oriumgames/schem/format v0.2.3/go.mod h1:Sd6fvU82YZBu/7g2OES1FC4gJpjLE5zWG+OeQsu3+ng=

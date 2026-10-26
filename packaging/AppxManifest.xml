@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:com="http://schemas.microsoft.com/appx/manifest/com/windows10"
+  xmlns:desktop4="http://schemas.microsoft.com/appx/manifest/desktop/windows10/4"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap com desktop4 rescap">
+
+  <Identity
+    Name="ExtensionChange"
+    Publisher="CN=ExtensionChange"
+    Version="0.1.4.0"
+    ProcessorArchitecture="x64" />
+
+  <Properties>
+    <DisplayName>Extension Change</DisplayName>
+    <PublisherDisplayName>ExtensionChange</PublisherDisplayName>
+    <Logo>Images\150x150.png</Logo>
+  </Properties>
+
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.22000.0" MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="ja-JP" />
+  </Resources>
+
+  <Applications>
+    <Application Id="ExtensionChange" Executable="ExtensionChange.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements
+        DisplayName="Extension Change"
+        Description="ファイル形式を変換する右クリックメニュー"
+        BackgroundColor="transparent"
+        Square44x44Logo="Images\44x44.png"
+        Square150x150Logo="Images\150x150.png" />
+      <Extensions>
+        <com:Extension Category="windows.comServer">
+          <com:ComServer>
+            <com:SurrogateServer DisplayName="ExtensionChange">
+              <com:Class Id="1f3d8c2a-9e4b-4b7a-8c2d-6e5f4a3b2c10" Path="shell_ext.dll" ThreadingModel="STA" />
+            </com:SurrogateServer>
+          </com:ComServer>
+        </com:Extension>
+        <desktop4:Extension Category="windows.fileExplorerContextMenus">
+          <desktop4:FileExplorerContextMenus>
+            <desktop4:ItemType Type="*">
+              <desktop4:Verb Id="ExtensionChange" Clsid="1f3d8c2a-9e4b-4b7a-8c2d-6e5f4a3b2c10" />
+            </desktop4:ItemType>
+          </desktop4:FileExplorerContextMenus>
+        </desktop4:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+</Package>

@@ -1,0 +1,17 @@
+{
+  "id": "video-convert",
+  "name": "動画変換",
+  "description": "動画を MP4 / MKV / WebM / GIF / JPEG / MP3 / WAV に変換します。FFmpeg が必要です。",
+  "extensions": ["mp4", "mkv", "mov", "avi", "webm", "m4v", "wmv", "flv", "ts", "mts", "m2ts", "hevc", "265", "h265", "av1", "ivf"],
+  "actions": [
+    { "id": "mp4", "name": "MP4に変換" },
+    { "id": "mp4copy", "name": "MP4に変換（コピー）" },
+    { "id": "mkv", "name": "MKVに変換" },
+    { "id": "webm", "name": "WebMに変換" },
+    { "id": "gif", "name": "GIFに変換" },
+    { "id": "jpeg", "name": "JPEGに変換（先頭フレーム）" },
+    { "id": "mp3", "name": "MP3に変換" },
+    { "id": "wav", "name": "WAVに変換" }
+  ],
+  "entry": "index.js"
+}

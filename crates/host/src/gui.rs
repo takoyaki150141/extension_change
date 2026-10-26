@@ -368,7 +368,7 @@ impl App {
 
         let mut version_label = nwg::Label::default();
         nwg::Label::builder()
-            .text("v0.1.3")
+            .text("v0.1.5")
             .position((734, 496))
             .size((150, 20))
             .parent(&window)
@@ -393,6 +393,12 @@ impl App {
         ui_style::send_to_back(&header_line.handle);
         ui_style::send_to_back(&footer_line.handle);
         ui_style::send_to_back(&body_divider.handle);
+        ui_style::set_clipsiblings(&header_bg.handle);
+        ui_style::set_clipsiblings(&accent_bar.handle);
+        ui_style::set_clipsiblings(&header_line.handle);
+        ui_style::set_clipsiblings(&title_label.handle);
+        ui_style::set_clipsiblings(&settings_btn.handle);
+        ui_style::control_to_top(&settings_btn.handle);
 
         let app = Rc::new(App {
             window,
@@ -456,6 +462,7 @@ impl App {
                         d.close(false);
                     }
                     self.settings_window.set_visible(false);
+                    ui_style::control_to_top(&self.settings_btn.handle);
                 }
             }
             nwg::Event::OnButtonClick => {
@@ -666,8 +673,8 @@ impl App {
             let mut check = nwg::CheckBox::default();
             match nwg::CheckBox::builder()
                 .text(&label)
-                .position((12, 10 + index as i32 * 30))
-                .size((400, 26))
+                .position((12 + (index as i32 % 2) * 390, 10 + (index as i32 / 2) * 30))
+                .size((370, 26))
                 .parent(&self.settings_window)
                 .font(Some(&self.body_font))
                 .check_state(if config.is_enabled(&key) {
@@ -710,6 +717,7 @@ impl App {
         }
         self.refresh_actions();
         self.settings_window.set_visible(false);
+        ui_style::control_to_top(&self.settings_btn.handle);
         self.log_line("設定を保存しました。");
     }
 

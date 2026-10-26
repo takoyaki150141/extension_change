@@ -6,8 +6,8 @@ use windows::Win32::Graphics::Dwm::{DwmSetWindowAttribute, DWMWA_WINDOW_CORNER_P
 use windows::Win32::Graphics::Gdi::{GetSysColor, COLOR_HIGHLIGHT};
 use windows::Win32::UI::WindowsAndMessaging::{
     GetSystemMetrics, GetWindowLongW, SendMessageW, SetForegroundWindow, SetWindowLongW,
-    SetWindowPos, GWL_STYLE, HWND_BOTTOM, SM_CXSCREEN, SM_CYSCREEN, SWP_FRAMECHANGED, SWP_NOACTIVATE,
-    SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, WS_MAXIMIZEBOX, WS_THICKFRAME,
+    SetWindowPos, GWL_STYLE, HWND_BOTTOM, HWND_TOP, SM_CXSCREEN, SM_CYSCREEN, SWP_FRAMECHANGED,
+    SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, WS_CLIPSIBLINGS, WS_MAXIMIZEBOX, WS_THICKFRAME,
 };
 
 pub const BG_RGB: [u8; 3] = [240, 240, 240];
@@ -40,6 +40,32 @@ pub fn send_to_back(handle: &nwg::ControlHandle) {
             let _ = SetWindowPos(
                 HWND(hwnd as *mut c_void),
                 Some(HWND_BOTTOM),
+                0,
+                0,
+                0,
+                0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
+            );
+        }
+    }
+}
+
+pub fn set_clipsiblings(handle: &nwg::ControlHandle) {
+    if let Some(hwnd) = handle.hwnd() {
+        unsafe {
+            let hwnd = HWND(hwnd as *mut c_void);
+            let style = GetWindowLongW(hwnd, GWL_STYLE);
+            SetWindowLongW(hwnd, GWL_STYLE, style | WS_CLIPSIBLINGS.0 as i32);
+        }
+    }
+}
+
+pub fn control_to_top(handle: &nwg::ControlHandle) {
+    if let Some(hwnd) = handle.hwnd() {
+        unsafe {
+            let _ = SetWindowPos(
+                HWND(hwnd as *mut c_void),
+                Some(HWND_TOP),
                 0,
                 0,
                 0,

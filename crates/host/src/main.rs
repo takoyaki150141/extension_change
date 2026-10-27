@@ -2,6 +2,7 @@
 
 mod engine;
 mod gui;
+mod mcp;
 mod ui_style;
 
 use std::path::PathBuf;
@@ -17,6 +18,7 @@ struct Args {
     headless: bool,
     run: bool,
     list: bool,
+    mcp: bool,
 }
 
 fn main() {
@@ -36,6 +38,10 @@ fn run() -> anyhow::Result<()> {
     let plugin_dirs = paths::plugin_dirs(&base);
     let config_path = paths::config_path();
     let config = Config::load(&config_path);
+
+    if args.mcp {
+        return mcp::run(&plugin_dirs, &config);
+    }
 
     if args.list {
         println!("plugins: {:?}", plugin_dirs);
@@ -124,6 +130,7 @@ fn parse_args() -> anyhow::Result<Args> {
         headless: false,
         run: false,
         list: false,
+        mcp: false,
     };
 
     let mut iter = std::env::args().skip(1);
@@ -144,6 +151,7 @@ fn parse_args() -> anyhow::Result<Args> {
             "--headless" => args.headless = true,
             "--run" => args.run = true,
             "--list" => args.list = true,
+            "--mcp" => args.mcp = true,
             other => {
                 if other.starts_with('-') {
                     bail!("unknown option: {other}");

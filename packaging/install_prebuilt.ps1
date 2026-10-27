@@ -15,8 +15,8 @@ if (-not (Test-Admin)) {
         throw "管理者権限で実行してください。"
     }
     $arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`""
-    Start-Process "powershell.exe" -ArgumentList $arguments -Verb RunAs
-    exit
+    $process = Start-Process "powershell.exe" -ArgumentList $arguments -Verb RunAs -Wait -PassThru
+    exit $process.ExitCode
 }
 
 $msix = Join-Path $PSScriptRoot "ExtensionChange.msix"

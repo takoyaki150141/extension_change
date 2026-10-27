@@ -59,7 +59,7 @@ Windows 11 の新しい右クリックメニューは、パッケージ ID を�
 powershell -ExecutionPolicy Bypass -File packaging\make_release.ps1
 ```
 
-`dist\ExtensionChange-0.3.0.zip` ができます。中身は MSIX、公開証明書（`.cer`）、`install_prebuilt.ps1` です。受け取った人は zip を展開して `install_prebuilt.ps1` を管理者で実行します。証明書は zip に含まれるので、受け取る側で証明書を用意する必要はありません。秘密鍵は含まれません。
+`dist\ExtensionChange-0.4.0.zip` ができます。中身は MSIX、公開証明書（`.cer`）、`install_prebuilt.ps1` です。受け取った人は zip を展開して `install.bat` をダブルクリックします。UAC の確認後、インストールされます。証明書は zip に含まれるので、受け取る側で証明書を用意する必要はありません。秘密鍵は含まれません。
 
 既存の MSIX と証明書を使う場合は `-Build` を付けません。ビルドし直す場合は `-Build` を付けます。ビルド自体に管理者権限は不要です。インストール時に証明書を信頼するため管理者権限が必要です。
 
@@ -87,6 +87,49 @@ powershell -ExecutionPolicy Bypass -File packaging\uninstall.ps1
 ホスト画面では、対象ファイル、操作、出力先を確認してから実行できます。右クリックから実行した場合は、元のファイルと同じフォルダへ出力します。ホスト画面から実行した場合だけ、出力先の指定を使います。
 
 「プラグイン設定」では、操作の有効・無効、プラグインフォルダを開く、プラグインの再読み込みができます。閉じるときはウィンドウの×を使います。
+
+## MCP サーバー
+
+`ExtensionChange.exe --mcp` で MCP サーバーとして起動する。stdio で JSON-RPC を改行区切りでやり取りし、GUI は開かない。
+
+ツール:
+
+| 名前 | 内容 |
+| --- | --- |
+| `list_actions` | 利用できる操作の一覧を返す |
+| `convert` | `action`、`files`、`output_dir` を指定して変換する |
+
+インストール先の exe:
+
+```powershell
+$exe = Join-Path (Get-AppxPackage -Name ExtensionChange).InstallLocation "ExtensionChange.exe"
+$exe
+```
+
+MCP クライアントの設定例:
+
+```json
+{
+  "mcpServers": {
+    "extension-change": {
+      "command": "C:\\Program Files\\WindowsApps\\...\\ExtensionChange.exe",
+      "args": ["--mcp"]
+    }
+  }
+}
+```
+
+`convert` の引数:
+
+```json
+{
+  "action": "image-convert/jpg",
+  "files": ["C:\\work\\sample.png"],
+  "output_dir": "C:\\work\\out"
+}
+```
+
+`output_dir` を省略するか空にすると、入力ファイルと同じフォルダへ出力する。MCP サーバーはローカル専用で、認証はない。起動できるプロセスは、このアプリの権限でファイルを読み書きできる。
 
 ## プラグイン
 

@@ -30,6 +30,7 @@ New-Item -ItemType Directory -Force -Path $Release | Out-Null
 Copy-Item -LiteralPath $Msix -Destination (Join-Path $Release "ExtensionChange.msix") -Force
 Copy-Item -LiteralPath $Cer -Destination (Join-Path $Release "ExtensionChange.cer") -Force
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot "install_prebuilt.ps1") -Destination $Release -Force
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot "install_prebuilt.bat") -Destination (Join-Path $Release "install.bat") -Force
 
 $manifest = [xml](Get-Content (Join-Path $PSScriptRoot "AppxManifest.xml") -Raw)
 $version = (($manifest.Package.Identity.Version -split '\.')[0..2] -join '.')

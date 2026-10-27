@@ -1,7 +1,7 @@
 {
   "id": "minecraft-schematic",
   "name": "Minecraft構造物",
-  "category": "構造物に変換",
+  "category": "Minecraft構造物",
   "description": "NBT / Litematica / Sponge / MCEdit / Axiom (.bp) を変換します。",
   "extensions": ["litematic", "schem", "schematic", "nbt", "bp", "axiom"],
   "actions": [

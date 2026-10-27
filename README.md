@@ -67,7 +67,7 @@ Windows 11 では新しい右クリックメニュー、Windows 10 ではクラ�
 powershell -ExecutionPolicy Bypass -File packaging\make_release.ps1
 ```
 
-`dist\ExtensionChange-0.11.2.zip` ができます。中身は MSIX、App Installer 用の `ExtensionChange.appinstaller`、公開証明書（`.cer`）、`install.bat`、`install_prebuilt.ps1`、`register_classic.ps1` です。受け取った人は zip を展開して `install.bat` をダブルクリックします。UAC の確認後、インストールされます。証明書は zip に含まれるので、受け取る側で証明書を用意する必要はありません。秘密鍵は含まれません。
+`dist\ExtensionChange-0.11.3.zip` ができます。中身は MSIX、App Installer 用の `ExtensionChange.appinstaller`、公開証明書（`.cer`）、`install.bat`、`install_prebuilt.ps1`、`register_classic.ps1` です。受け取った人は zip を展開して `install.bat` をダブルクリックします。UAC の確認後、インストールされます。証明書は zip に含まれるので、受け取る側で証明書を用意する必要はありません。秘密鍵は含まれません。
 
 既存の MSIX と証明書を使う場合は `-Build` を付けません。ビルドし直す場合は `-Build` を付けます。ビルド自体に管理者権限は不要です。インストール時に証明書を信頼するため管理者権限が必要です。
 
@@ -87,7 +87,7 @@ powershell -ExecutionPolicy Bypass -File packaging\uninstall.ps1
 - フォント: 「変換」→「フォントに変換」
 - 画像: 「変換」→「画像に変換」
 - 動画: 「変換」→「動画に変換」「音声に変換」「画像に変換」
-- 構造物: 「変換」→「構造物に変換」\n- 3D: 「変換」→「3Dに変換」\n- 文書: 「変換」→「文書に変換」\n- その他: 「変換」→「その他」→「FFmpegで変換」（GUIで出力形式を選ぶ）
+- 構造物: 「変換」→「Minecraft構造物」\n- 3D: 「変換」→「3Dに変換」\n- 文書: 「変換」→「文書に変換」\n- その他: 「変換」→「その他」→「FFmpegで変換」（GUIで出力形式を選ぶ）
 - 新しい分類: 「変換」→ プラグインが定義した分類（対応する操作がある場合だけ表示）
 
 右クリックから実行した場合は、小さな進捗画面だけが表示されます。完了すると自動で閉じます。

@@ -172,6 +172,18 @@ if ($old) {
 Write-Host "パッケージをインストールします。"
 Add-AppxPackage -Path $Msix -ForceApplicationShutdown
 
+$installed = Get-AppxPackage -Name "ExtensionChange" -ErrorAction SilentlyContinue
+if ($installed) {
+    $shellDll = Join-Path $installed.InstallLocation "shell_ext.dll"
+    if (Test-Path -LiteralPath $shellDll) {
+        try {
+            & (Join-Path $PSScriptRoot "register_classic.ps1") -DllPath $shellDll
+        } catch {
+            Write-Warning "クラシック右クリックメニューを登録できませんでした: $_"
+        }
+    }
+}
+
 Remove-Item -LiteralPath $Stage -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item -LiteralPath (Join-Path $DataDir "app") -Recurse -Force -ErrorAction SilentlyContinue
 

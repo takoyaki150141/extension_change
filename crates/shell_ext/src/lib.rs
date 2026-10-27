@@ -1,5 +1,7 @@
 #![allow(non_snake_case)]
 
+use std::cell::RefCell;
+use std::collections::HashMap;
 use std::ffi::c_void;
 use std::os::windows::process::CommandExt;
 use std::path::{Path, PathBuf};
@@ -7,20 +9,27 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use extension_change_core::{config::Config, paths, plugin};
-use windows::core::{implement, IUnknown, Interface, Ref, BOOL, GUID, HRESULT, PCWSTR, PWSTR};
+use windows::core::{implement, IUnknown, Interface, PSTR, Ref, BOOL, GUID, HRESULT, PCWSTR, PWSTR};
 use windows::Win32::Foundation::{
-    CLASS_E_CLASSNOTAVAILABLE, E_NOTIMPL, E_POINTER, HINSTANCE, HMODULE, S_FALSE, S_OK,
+    CLASS_E_CLASSNOTAVAILABLE, E_INVALIDARG, E_NOTIMPL, E_POINTER, HINSTANCE, HMODULE, S_FALSE, S_OK,
 };
 use windows::Win32::System::Com::{
-    CoTaskMemAlloc, CoTaskMemFree, IBindCtx, IClassFactory, IClassFactory_Impl,
+    CoTaskMemAlloc, CoTaskMemFree, IDataObject, IBindCtx, IClassFactory, IClassFactory_Impl,
+    DVASPECT_CONTENT, FORMATETC, STGMEDIUM, TYMED_HGLOBAL,
 };
 use windows::Win32::System::LibraryLoader::{
     GetModuleFileNameW, GetModuleHandleExW, GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS,
     GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
 };
+use windows::Win32::System::Ole::ReleaseStgMedium;
+use windows::Win32::System::Registry::HKEY;
 use windows::Win32::UI::Shell::{
-    IEnumExplorerCommand, IEnumExplorerCommand_Impl, IExplorerCommand, IExplorerCommand_Impl,
-    IShellItemArray, SIGDN_FILESYSPATH,
+    DragQueryFileW, HDROP, IContextMenu, IContextMenu_Impl, IEnumExplorerCommand,
+    IEnumExplorerCommand_Impl, IExplorerCommand, IExplorerCommand_Impl, IShellExtInit,
+    IShellExtInit_Impl, IShellItemArray, CMINVOKECOMMANDINFO, SIGDN_FILESYSPATH,
+};
+use windows::Win32::UI::WindowsAndMessaging::{
+    AppendMenuW, CreatePopupMenu, DestroyMenu, InsertMenuW, HMENU, MF_BYPOSITION, MF_POPUP, MF_STRING,
 };
 
 const CLSID_ROOT: GUID = GUID::from_u128(0x1f3d8c2a_9e4b_4b7a_8c2d_6e5f4a3b2c10);
@@ -42,8 +51,20 @@ struct CategorySpec {
     actions: Vec<ActionSpec>,
 }
 
-#[implement(IExplorerCommand)]
-struct RootCommand;
+#[implement(IExplorerCommand, IContextMenu, IShellExtInit)]
+struct RootCommand {
+    files: RefCell<Vec<String>>,
+    commands: RefCell<HashMap<u32, String>>,
+}
+
+impl RootCommand {
+    fn new() -> Self {
+        Self {
+            files: RefCell::new(Vec::new()),
+            commands: RefCell::new(HashMap::new()),
+        }
+    }
+}
 
 impl IExplorerCommand_Impl for RootCommand_Impl {
     fn GetTitle(&self, _items: Ref<IShellItemArray>) -> windows::core::Result<PWSTR> {
@@ -103,6 +124,167 @@ impl IExplorerCommand_Impl for RootCommand_Impl {
     }
 }
 
+impl IShellExtInit_Impl for RootCommand_Impl {
+    fn Initialize(
+        &self,
+        _pidl_folder: *const windows::Win32::UI::Shell::Common::ITEMIDLIST,
+        pdtobj: Ref<IDataObject>,
+        _hkey: HKEY,
+    ) -> windows::core::Result<()> {
+        let Some(data) = pdtobj.as_ref() else {
+            return Ok(());
+        };
+        let format = FORMATETC {
+            cfFormat: 15,
+            ptd: std::ptr::null_mut(),
+            dwAspect: DVASPECT_CONTENT.0,
+            lindex: -1,
+            tymed: TYMED_HGLOBAL.0 as u32,
+        };
+        let mut medium = unsafe { data.GetData(&format)? };
+        let hdrop: HDROP = unsafe { std::mem::transmute(medium.u.hGlobal) };
+        let count = unsafe { DragQueryFileW(hdrop, u32::MAX, None) };
+        for index in 0..count {
+            let length = unsafe { DragQueryFileW(hdrop, index, None) };
+            let mut buffer = vec![0u16; length as usize + 1];
+            let copied = unsafe { DragQueryFileW(hdrop, index, Some(&mut buffer)) };
+            if copied > 0 {
+                buffer.truncate(copied as usize);
+                self.files
+                    .borrow_mut()
+                    .push(String::from_utf16_lossy(&buffer));
+            }
+        }
+        unsafe {
+            ReleaseStgMedium(&mut medium);
+        }
+        Ok(())
+    }
+}
+
+impl IContextMenu_Impl for RootCommand_Impl {
+    fn QueryContextMenu(
+        &self,
+        hmenu: HMENU,
+        indexmenu: u32,
+        idcmdfirst: u32,
+        idcmdlast: u32,
+        uflags: u32,
+    ) -> HRESULT {
+        if uflags & 0x0000_0001 != 0 {
+            return S_FALSE;
+        }
+
+        let files = self.files.borrow();
+        if files.is_empty() {
+            return S_FALSE;
+        }
+
+        let Ok(root) = (unsafe { CreatePopupMenu() }) else {
+            return S_FALSE;
+        };
+        let mut commands = self.commands.borrow_mut();
+        commands.clear();
+
+        let mut next_id = idcmdfirst;
+        let mut category_count = 0usize;
+        for category in enabled_categories() {
+            let actions: Vec<ActionSpec> = category
+                .actions
+                .into_iter()
+                .filter(|action| {
+                    files
+                        .iter()
+                        .any(|file| matches_extension(file, &action.extensions))
+                })
+                .collect();
+            if actions.is_empty() {
+                continue;
+            }
+
+            let Ok(submenu) = (unsafe { CreatePopupMenu() }) else {
+                continue;
+            };
+            let mut action_count = 0usize;
+            for action in actions {
+                if next_id > idcmdlast {
+                    break;
+                }
+                let title = wide(&action.title);
+                unsafe {
+                    AppendMenuW(
+                        submenu,
+                        MF_STRING,
+                        next_id as usize,
+                        PCWSTR(title.as_ptr()),
+                    );
+                }
+                commands.insert(next_id, action.key);
+                next_id += 1;
+                action_count += 1;
+            }
+            if action_count == 0 {
+                unsafe {
+                    DestroyMenu(submenu);
+                }
+                continue;
+            }
+
+            let title = wide(&category.title);
+            unsafe {
+                AppendMenuW(root, MF_POPUP, submenu.0 as usize, PCWSTR(title.as_ptr()));
+            }
+            category_count += 1;
+        }
+
+        if category_count == 0 {
+            unsafe {
+                DestroyMenu(root);
+            }
+            return S_FALSE;
+        }
+
+        let title = wide("変換");
+        unsafe {
+            InsertMenuW(
+                hmenu,
+                indexmenu,
+                MF_BYPOSITION | MF_POPUP,
+                root.0 as usize,
+                PCWSTR(title.as_ptr()),
+            );
+        }
+        S_OK
+    }
+
+    fn InvokeCommand(&self, pici: *const CMINVOKECOMMANDINFO) -> windows::core::Result<()> {
+        if pici.is_null() {
+            return Err(E_INVALIDARG.into());
+        }
+        let info = unsafe { &*pici };
+        let verb = info.lpVerb.0 as *const u16;
+        if verb.is_null() {
+            return Err(E_INVALIDARG.into());
+        }
+        let id = unsafe { std::ptr::read_unaligned(verb) } as u32;
+        let Some(key) = self.commands.borrow().get(&id).cloned() else {
+            return Err(E_INVALIDARG.into());
+        };
+        launch_host(&self.files.borrow(), Some(&key));
+        Ok(())
+    }
+
+    fn GetCommandString(
+        &self,
+        _idcmd: usize,
+        _utype: u32,
+        _preserved: *const u32,
+        _pszname: PSTR,
+        _cchmax: u32,
+    ) -> windows::core::Result<()> {
+        Err(E_NOTIMPL.into())
+    }
+}
 #[implement(IExplorerCommand)]
 struct CategoryCommand {
     spec: CategorySpec,
@@ -369,7 +551,7 @@ impl IClassFactory_Impl for Factory_Impl {
         unsafe {
             *object = std::ptr::null_mut();
         }
-        let command: IExplorerCommand = RootCommand.into();
+        let command: IExplorerCommand = RootCommand::new().into();
         let hr = unsafe { command.query(riid, object) };
         hr.ok()
     }
@@ -526,6 +708,10 @@ fn paths_from_items(items: Ref<IShellItemArray>) -> Vec<String> {
     files
 }
 
+fn wide(text: &str) -> Vec<u16> {
+    text.encode_utf16().chain(std::iter::once(0)).collect()
+}
+
 fn matches_extension(path: &str, extensions: &[String]) -> bool {
     Path::new(path)
         .extension()
@@ -648,7 +834,7 @@ mod tests {
                 None,
                 windows::Win32::System::Com::COINIT_APARTMENTTHREADED,
             );
-            let command: IExplorerCommand = RootCommand.into();
+            let command: IExplorerCommand = RootCommand::new().into();
             let title = |path: &Path| {
                 command
                     .GetTitle(Some(&array(path)))

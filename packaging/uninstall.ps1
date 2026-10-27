@@ -33,6 +33,10 @@ if ($package) {
     Write-Host "パッケージは登録されていません。"
 }
 
+$clsid = "{1f3d8c2a-9e4b-4b7a-8c2d-6e5f4a3b2c10}"
+& reg.exe delete "HKCU\Software\Classes\*\shellex\ContextMenuHandlers\ExtensionChange" /f 2>$null | Out-Null
+& reg.exe delete "HKCU\Software\Classes\CLSID\$clsid" /f 2>$null | Out-Null
+
 if ($Purge) {
     if (Test-Path -LiteralPath $DataDir) {
         Remove-Item -LiteralPath $DataDir -Recurse -Force

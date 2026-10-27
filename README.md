@@ -37,7 +37,7 @@ Windows 11 の右クリックメニューからファイルを変換するツー
 
 ## 必要環境
 
-- Windows 11 22H2 以降
+- Windows 10 2004（19041）以降 / Windows 11
 - インストール時の管理者権限
 - ビルドする場合: Rust stable (MSVC)、Windows SDK、Go（`schem-convert.exe` を再ビルドするときだけ）
 
@@ -49,7 +49,7 @@ Windows 11 の右クリックメニューからファイルを変換するツー
 powershell -ExecutionPolicy Bypass -File packaging\install.ps1
 ```
 
-Windows 11 の新しい右クリックメニューは、パッケージ ID を持つ MSIX で登録します。
+Windows 11 では新しい右クリックメニュー、Windows 10 ではクラシック右クリックメニューに登録します。クラシック側はインストール時に現在のユーザーのレジストリへ登録します。
 
 ## 配布用
 
@@ -59,7 +59,7 @@ Windows 11 の新しい右クリックメニューは、パッケージ ID を�
 powershell -ExecutionPolicy Bypass -File packaging\make_release.ps1
 ```
 
-`dist\ExtensionChange-0.5.0.zip` ができます。中身は MSIX、公開証明書（`.cer`）、`install_prebuilt.ps1` です。受け取った人は zip を展開して `install.bat` をダブルクリックします。UAC の確認後、インストールされます。証明書は zip に含まれるので、受け取る側で証明書を用意する必要はありません。秘密鍵は含まれません。
+`dist\ExtensionChange-0.6.0.zip` ができます。中身は MSIX、公開証明書（`.cer`）、`install_prebuilt.ps1` です。受け取った人は zip を展開して `install.bat` をダブルクリックします。UAC の確認後、インストールされます。証明書は zip に含まれるので、受け取る側で証明書を用意する必要はありません。秘密鍵は含まれません。
 
 既存の MSIX と証明書を使う場合は `-Build` を付けません。ビルドし直す場合は `-Build` を付けます。ビルド自体に管理者権限は不要です。インストール時に証明書を信頼するため管理者権限が必要です。
 

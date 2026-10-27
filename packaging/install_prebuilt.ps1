@@ -43,6 +43,18 @@ if ($old) {
 
 Add-AppxPackage -Path $msix -ForceApplicationShutdown
 
+$installed = Get-AppxPackage -Name "ExtensionChange" -ErrorAction SilentlyContinue
+if ($installed) {
+    $shellDll = Join-Path $installed.InstallLocation "shell_ext.dll"
+    if (Test-Path -LiteralPath $shellDll) {
+        try {
+            & (Join-Path $PSScriptRoot "register_classic.ps1") -DllPath $shellDll
+        } catch {
+            Write-Warning "クラシック右クリックメニューを登録できませんでした: $_"
+        }
+    }
+}
+
 Write-Host ""
 Write-Host "インストール完了。"
 Write-Host "エクスプローラーを再起動すると、右クリックメニューが反映されます。"

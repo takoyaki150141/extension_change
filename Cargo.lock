@@ -395,7 +395,7 @@ dependencies = [
 
 [[package]]
 name = "extension_change_core"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -403,7 +403,7 @@ dependencies = [
 
 [[package]]
 name = "extension_change_host"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "anyhow",
  "calamine",
@@ -425,7 +425,7 @@ dependencies = [
 
 [[package]]
 name = "extension_change_shell"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "extension_change_core",
  "windows",

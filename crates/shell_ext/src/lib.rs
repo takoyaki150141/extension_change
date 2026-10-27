@@ -115,8 +115,8 @@ impl IExplorerCommand_Impl for RootCommand_Impl {
     }
 
     fn EnumSubCommands(&self) -> windows::core::Result<IEnumExplorerCommand> {
-        let items = enabled_categories();
-        let enumerator = EnumCategories {
+        let items = flat_major_actions();
+        let enumerator = EnumCommands {
             items: Arc::new(items),
             index: AtomicUsize::new(0),
         };
@@ -608,6 +608,37 @@ fn enabled_actions() -> Vec<ActionSpec> {
         .collect()
 }
 
+const MAJOR_ACTIONS: &[&str] = &[
+    "image-convert/png",
+    "image-convert/jpg",
+    "image-convert/webp",
+    "video-convert/mp4",
+    "video-convert/mkv",
+    "video-convert/gif",
+    "audio-convert/mp3",
+    "audio-convert/wav",
+    "audio-convert/flac",
+    "mesh-convert/obj",
+    "mesh-convert/ply",
+    "mesh-convert/off",
+    "excel-to-csv/xlsx2csv",
+    "csv-to-excel/csv2xlsx",
+    "markdown-convert/md2html",
+    "ffmpeg-other/convert",
+];
+
+fn flat_major_actions() -> Vec<ActionSpec> {
+    let actions = enabled_actions();
+    MAJOR_ACTIONS
+        .iter()
+        .filter_map(|key| actions.iter().find(|action| action.key == *key).cloned())
+        .map(|mut action| {
+            let category = action.category.trim_end_matches("に変換");
+            action.title = format!("{category}: {}", action.title);
+            action
+        })
+        .collect()
+}
 fn enabled_categories() -> Vec<CategorySpec> {
     let mut categories: Vec<CategorySpec> = Vec::new();
     for action in enabled_actions() {
@@ -800,16 +831,6 @@ mod tests {
                 .to_string()
                 .expect("title is not valid UTF-16");
             assert!(!sub_title.is_empty());
-            assert_ne!(
-                sub.GetFlags().expect("GetFlags failed") & ECF_HASSUBCOMMANDS,
-                0
-            );
-
-            let actions = sub.EnumSubCommands().expect("nested subcommands failed");
-            let mut action_items: [Option<IExplorerCommand>; 1] = [None];
-            let hr = actions.Next(&mut action_items, None);
-            assert!(hr.is_ok());
-            assert!(action_items[0].is_some());
         }
     }
 

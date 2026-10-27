@@ -368,7 +368,7 @@ impl App {
 
         let mut version_label = nwg::Label::default();
         nwg::Label::builder()
-            .text("v0.7.0")
+            .text("v0.8.0")
             .position((734, 496))
             .size((150, 20))
             .parent(&window)
@@ -669,14 +669,14 @@ impl App {
         let mut checks = Vec::new();
         let mut keys = Vec::new();
         let config = self.config.borrow();
-        for (index, action) in all.iter().take(30).enumerate() {
+        for (index, action) in all.iter().take(60).enumerate() {
             let key = action.key();
             let label = format!("{} / {}", action.plugin.manifest.name, action.action.name);
             let mut check = nwg::CheckBox::default();
             match nwg::CheckBox::builder()
                 .text(&label)
-                .position((12 + (index as i32 % 2) * 390, 10 + (index as i32 / 2) * 30))
-                .size((370, 26))
+                .position((12 + (index as i32 % 3) * 260, 10 + (index as i32 / 3) * 22))
+                .size((245, 20))
                 .parent(&self.settings_window)
                 .font(Some(&self.body_font))
                 .background_color(Some([255, 255, 255]))
@@ -1068,14 +1068,14 @@ fn build_settings(
 
     let mut checks = Vec::new();
     let mut keys = Vec::new();
-    for (index, action) in all.iter().take(30).enumerate() {
+    for (index, action) in all.iter().take(60).enumerate() {
         let key = action.key();
         let label = format!("{} / {}", action.plugin.manifest.name, action.action.name);
         let mut check = nwg::CheckBox::default();
         nwg::CheckBox::builder()
             .text(&label)
-            .position((12 + (index as i32 % 2) * 390, 10 + (index as i32 / 2) * 30))
-            .size((370, 26))
+            .position((12 + (index as i32 % 3) * 260, 10 + (index as i32 / 3) * 22))
+            .size((245, 20))
             .parent(&window)
             .font(Some(body_font))
             .background_color(Some([255, 255, 255]))

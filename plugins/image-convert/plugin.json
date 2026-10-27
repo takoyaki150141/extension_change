@@ -2,8 +2,8 @@
   "id": "image-convert",
   "name": "画像変換",
   "category": "画像に変換",
-  "description": "画像を PNG / JPG / WebP / BMP / GIF / TIFF / ICO に変換します。",
-  "extensions": ["png", "jpg", "jpeg", "webp", "bmp", "gif", "tif", "tiff", "ico", "heic", "heif"],
+  "description": "画像を PNG / JPG / WebP / BMP / GIF / TIFF / ICO / AVIF / JPEG XL / TGA / PNM / QOI に変換します。",
+  "extensions": ["png", "jpg", "jpeg", "webp", "bmp", "gif", "tif", "tiff", "ico", "heic", "heif", "avif", "jxl", "tga", "pnm", "ppm", "pgm", "pbm", "qoi"],
   "actions": [
     { "id": "png", "name": "PNGに変換" },
     { "id": "jpg", "name": "JPGに変換" },
@@ -11,7 +11,12 @@
     { "id": "ico", "name": "ICOに変換" },
     { "id": "bmp", "name": "BMPに変換" },
     { "id": "gif", "name": "GIFに変換" },
-    { "id": "tiff", "name": "TIFFに変換" }
+    { "id": "tiff", "name": "TIFFに変換" },
+    { "id": "avif", "name": "AVIFに変換" },
+    { "id": "jxl", "name": "JPEG XLに変換" },
+    { "id": "tga", "name": "TGAに変換" },
+    { "id": "pnm", "name": "PNMに変換" },
+    { "id": "qoi", "name": "QOIに変換" }
   ],
   "entry": "index.js"
 }

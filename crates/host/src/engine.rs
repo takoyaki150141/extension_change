@@ -516,6 +516,10 @@ impl ConvertContext {
         let ext = normalize_ext(format)?;
         let target = PathBuf::from(self.target_name(&input.to_string_lossy(), &ext)?);
 
+        if matches!(ext.as_str(), "avif" | "jxl") {
+            return self.ffmpeg_image(&input, &target, &ext);
+        }
+
         let img = match image::open(&input) {
             Ok(img) => img,
             Err(_) => return self.ffmpeg_image(&input, &target, &ext),
@@ -543,8 +547,23 @@ impl ConvertContext {
             .arg(input)
             .arg("-frames:v")
             .arg("1");
-        if ext == "jpg" {
-            command.arg("-q:v").arg("2");
+        match ext {
+            "jpg" => {
+                command.arg("-q:v").arg("2");
+            }
+            "avif" => {
+                command
+                    .arg("-c:v")
+                    .arg("libaom-av1")
+                    .arg("-still-picture")
+                    .arg("1")
+                    .arg("-crf")
+                    .arg("30");
+            }
+            "jxl" => {
+                command.arg("-c:v").arg("libjxl").arg("-quality").arg("90");
+            }
+            _ => {}
         }
         command
             .arg(target)
@@ -583,6 +602,21 @@ impl ConvertContext {
                 | "m4a"
                 | "aac"
                 | "opus"
+                | "avi"
+                | "mov"
+                | "m4v"
+                | "wmv"
+                | "flv"
+                | "ts"
+                | "mpg"
+                | "prores"
+                | "hevc"
+                | "av1"
+                | "wma"
+                | "aiff"
+                | "alac"
+                | "ac3"
+                | "eac3"
         ) {
             bail!("unsupported video format: {format}");
         }
@@ -590,6 +624,10 @@ impl ConvertContext {
         let target_format = match format.as_str() {
             "mp4copy" => "mp4",
             "jpeg" => "jpg",
+            "prores" => "mov",
+            "hevc" => "mp4",
+            "av1" => "mkv",
+            "alac" => "m4a",
             other => other,
         };
         let target = PathBuf::from(self.target_name_for(&input.to_string_lossy(), target_format)?);
@@ -688,7 +726,7 @@ impl ConvertContext {
             .arg(&input);
 
         match encode_format {
-            "mp4" => {
+            "mp4" | "mov" | "m4v" => {
                 command
                     .arg("-c:v")
                     .arg("libx264")
@@ -757,7 +795,141 @@ impl ConvertContext {
                     .arg("-b:a")
                     .arg("128k");
             }
-            _ => unreachable!(),
+            "mkv" => {
+                command
+                    .arg("-c:v")
+                    .arg("libx264")
+                    .arg("-crf")
+                    .arg(&quality)
+                    .arg("-preset")
+                    .arg("medium")
+                    .arg("-c:a")
+                    .arg("aac")
+                    .arg("-b:a")
+                    .arg("128k");
+            }
+            "avi" => {
+                command
+                    .arg("-c:v")
+                    .arg("mpeg4")
+                    .arg("-q:v")
+                    .arg("5")
+                    .arg("-c:a")
+                    .arg("libmp3lame")
+                    .arg("-b:a")
+                    .arg("192k");
+            }
+            "wmv" => {
+                command
+                    .arg("-c:v")
+                    .arg("wmv2")
+                    .arg("-b:v")
+                    .arg("2M")
+                    .arg("-c:a")
+                    .arg("wmav2")
+                    .arg("-b:a")
+                    .arg("192k");
+            }
+            "flv" => {
+                command
+                    .arg("-c:v")
+                    .arg("flv")
+                    .arg("-b:v")
+                    .arg("2M")
+                    .arg("-c:a")
+                    .arg("libmp3lame")
+                    .arg("-b:a")
+                    .arg("128k");
+            }
+            "ts" => {
+                command
+                    .arg("-c:v")
+                    .arg("libx264")
+                    .arg("-crf")
+                    .arg(&quality)
+                    .arg("-preset")
+                    .arg("medium")
+                    .arg("-c:a")
+                    .arg("aac")
+                    .arg("-b:a")
+                    .arg("128k");
+            }
+            "mpg" => {
+                command
+                    .arg("-c:v")
+                    .arg("mpeg2video")
+                    .arg("-q:v")
+                    .arg("3")
+                    .arg("-c:a")
+                    .arg("mp2")
+                    .arg("-b:a")
+                    .arg("192k");
+            }
+            "prores" => {
+                command
+                    .arg("-c:v")
+                    .arg("prores_ks")
+                    .arg("-profile:v")
+                    .arg("3")
+                    .arg("-c:a")
+                    .arg("pcm_s16le");
+            }
+            "hevc" => {
+                command
+                    .arg("-c:v")
+                    .arg("libx265")
+                    .arg("-crf")
+                    .arg(&quality)
+                    .arg("-preset")
+                    .arg("medium")
+                    .arg("-c:a")
+                    .arg("aac")
+                    .arg("-b:a")
+                    .arg("128k")
+                    .arg("-tag:v")
+                    .arg("hvc1");
+            }
+            "av1" => {
+                command
+                    .arg("-c:v")
+                    .arg("libsvtav1")
+                    .arg("-crf")
+                    .arg(&quality)
+                    .arg("-c:a")
+                    .arg("libopus")
+                    .arg("-b:a")
+                    .arg("128k");
+            }
+            "wma" => {
+                command
+                    .arg("-vn")
+                    .arg("-c:a")
+                    .arg("wmav2")
+                    .arg("-b:a")
+                    .arg("192k");
+            }
+            "aiff" => {
+                command.arg("-vn").arg("-c:a").arg("pcm_s16be");
+            }
+            "alac" => {
+                command.arg("-vn").arg("-c:a").arg("alac");
+            }
+            "ac3" => {
+                command
+                    .arg("-vn")
+                    .arg("-c:a")
+                    .arg("ac3")
+                    .arg("-b:a")
+                    .arg("192k");
+            }
+            "eac3" => {
+                command
+                    .arg("-vn")
+                    .arg("-c:a")
+                    .arg("eac3")
+                    .arg("-b:a")
+                    .arg("192k");
+            }            _ => unreachable!(),
         }
 
         command.arg(&target);
@@ -961,7 +1133,7 @@ fn ffmpeg_path() -> Option<PathBuf> {
 fn normalize_ext(ext: &str) -> anyhow::Result<String> {
     let ext = ext.trim().trim_start_matches('.').to_ascii_lowercase();
     match ext.as_str() {
-        "png" | "jpg" | "jpeg" | "webp" | "bmp" | "gif" | "tif" | "tiff" | "ico" => {
+        "png" | "jpg" | "jpeg" | "webp" | "bmp" | "gif" | "tif" | "tiff" | "ico" | "avif" | "jxl" | "tga" | "pnm" | "qoi" => {
             Ok(if ext == "jpeg" {
                 "jpg".into()
             } else if ext == "tif" {
@@ -1013,6 +1185,9 @@ fn write_image(
                 "gif" => ImageFormat::Gif,
                 "tiff" => ImageFormat::Tiff,
                 "ico" => ImageFormat::Ico,
+                "tga" => ImageFormat::Tga,
+                "pnm" => ImageFormat::Pnm,
+                "qoi" => ImageFormat::Qoi,
                 _ => bail!("unsupported output format: {ext}"),
             };
             img.write_to(&mut writer, format)

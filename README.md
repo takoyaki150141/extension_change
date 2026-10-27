@@ -1,26 +1,27 @@
 # Extension Change
 
-Windows 11 の右クリックメニューからファイルを変換するツールです。画像、動画、音声、フォント、Minecraft の構造物に対応しています。変換の手順は JS プラグインで追加できます。C# と Rust のネイティブプラグインにも対応しています。
+Windows 11 / Windows 10 の右クリックメニューからファイルを変換するツールです。画像、動画、音声、フォント、Minecraft の構造物に対応しています。変換の手順は JS プラグインで追加できます。C# と Rust のネイティブプラグインにも対応しています。
 
 ## 対応形式
 
 ### 画像
 
-- 入力: PNG / JPG / WebP / BMP / GIF / TIFF / ICO / HEIC / HEIF
-- 出力: PNG / JPG / WebP / BMP / GIF / TIFF / ICO
-- HEIC / HEIF は FFmpeg でデコードします。
+- 入力: PNG / JPG / WebP / BMP / GIF / TIFF / ICO / HEIC / HEIF / AVIF / JPEG XL / TGA / PNM / QOI
+- 出力: PNG / JPG / WebP / BMP / GIF / TIFF / ICO / AVIF / JPEG XL / TGA / PNM / QOI
+- HEIC / HEIF と AVIF / JPEG XL は FFmpeg で変換します。
 
 ### 動画
 
-- 入力: MP4 / MKV / MOV / AVI / WebM / M4V / WMV / FLV / TS / M2TS / HEVC / AV1 / IVF
-- 出力: MP4 / MKV / WebM / GIF / JPEG（先頭フレーム）/ MP3 / WAV
+- 入力: MP4 / MKV / MOV / AVI / WebM / M4V / WMV / FLV / TS / M2TS / MPG / VOB / 3GP / OGV / MXF / HEVC / AV1 / IVF
+- 出力: MP4 / MKV / MOV / AVI / M4V / WMV / FLV / TS / MPG / WebM / ProRes (MOV) / HEVC (MP4) / AV1 (MKV) / GIF / JPEG（先頭フレーム）
+- 音声出力: MP3 / WAV / AAC / M4A / FLAC / OGG / OPUS / WMA / AIFF / ALAC / AC3
 - MP4 と MKV はコーデックを変えずにコンテナだけ変換できます。コピーに失敗した場合は H.264 で再エンコードします。
 - M2TS と AV1 は MP4 へ変換できます。
 
 ### 音声
 
-- 入力: MP3 / WAV / FLAC / OGG / M4A / AAC / OPUS / WMA / AIFF
-- 出力: MP3 / WAV / FLAC / OGG / M4A / OPUS
+- 入力: MP3 / WAV / FLAC / OGG / M4A / AAC / OPUS / WMA / AIFF / AC3 / EAC3 / MKA
+- 出力: MP3 / WAV / FLAC / OGG / M4A / OPUS / AAC / WMA / AIFF / ALAC / AC3 / EAC3
 
 ### フォント
 
@@ -59,7 +60,7 @@ Windows 11 では新しい右クリックメニュー、Windows 10 ではクラ�
 powershell -ExecutionPolicy Bypass -File packaging\make_release.ps1
 ```
 
-`dist\ExtensionChange-0.7.0.zip` ができます。中身は MSIX、App Installer 用の `ExtensionChange.appinstaller`、公開証明書（`.cer`）、`install.bat`、`install_prebuilt.ps1`、`register_classic.ps1` です。受け取った人は zip を展開して `install.bat` をダブルクリックします。UAC の確認後、インストールされます。証明書は zip に含まれるので、受け取る側で証明書を用意する必要はありません。秘密鍵は含まれません。
+`dist\ExtensionChange-0.8.0.zip` ができます。中身は MSIX、App Installer 用の `ExtensionChange.appinstaller`、公開証明書（`.cer`）、`install.bat`、`install_prebuilt.ps1`、`register_classic.ps1` です。受け取った人は zip を展開して `install.bat` をダブルクリックします。UAC の確認後、インストールされます。証明書は zip に含まれるので、受け取る側で証明書を用意する必要はありません。秘密鍵は含まれません。
 
 既存の MSIX と証明書を使う場合は `-Build` を付けません。ビルドし直す場合は `-Build` を付けます。ビルド自体に管理者権限は不要です。インストール時に証明書を信頼するため管理者権限が必要です。
 
@@ -187,11 +188,11 @@ module.exports = function (ctx) {
 | `schematic(file, format, options)` | Minecraft の構造物を変換し、出力パスを返す |
 | `name(file, ext)` | 保存先のパスだけを決める |
 
-画像の `format` は `png`、`jpg`、`webp`、`bmp`、`gif`、`tiff`、`ico` です。`options.quality` は JPG の品質です。
+画像の `format` は `png`、`jpg`、`webp`、`bmp`、`gif`、`tiff`、`ico`、`avif`、`jxl`、`tga`、`pnm`、`qoi` です。`options.quality` は JPG の品質です。
 
-動画の `format` は `mp4`、`mp4copy`、`mkv`、`webm`、`gif`、`jpeg`、`png`、`mp3`、`wav`、`flac`、`ogg`、`m4a`、`aac`、`opus` です。
+動画の `format` は `mp4`、`mp4copy`、`mkv`、`mov`、`avi`、`m4v`、`wmv`、`flv`、`ts`、`mpg`、`webm`、`prores`、`hevc`、`av1`、`gif`、`jpeg`、`png`、`mp3`、`wav`、`aac`、`m4a`、`flac`、`ogg`、`opus`、`wma`、`aiff`、`alac`、`ac3` です。
 
-音声の `format` は `mp3`、`wav`、`flac`、`ogg`、`m4a`、`opus` です。
+音声の `format` は `mp3`、`wav`、`flac`、`ogg`、`m4a`、`opus`、`aac`、`wma`、`aiff`、`alac`、`ac3`、`eac3` です。
 
 フォントの `format` は `ttf`、`otf`、`woff`、`woff2` です。
 

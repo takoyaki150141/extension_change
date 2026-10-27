@@ -368,7 +368,7 @@ impl App {
 
         let mut version_label = nwg::Label::default();
         nwg::Label::builder()
-            .text("v0.2.1")
+            .text("v0.3.0")
             .position((734, 496))
             .size((150, 20))
             .parent(&window)
@@ -679,6 +679,7 @@ impl App {
                 .size((370, 26))
                 .parent(&self.settings_window)
                 .font(Some(&self.body_font))
+                .background_color(Some([255, 255, 255]))
                 .check_state(if config.is_enabled(&key) {
                     nwg::CheckBoxState::Checked
                 } else {
@@ -1077,6 +1078,7 @@ fn build_settings(
             .size((370, 26))
             .parent(&window)
             .font(Some(body_font))
+            .background_color(Some([255, 255, 255]))
             .check_state(if config.is_enabled(&key) {
                 nwg::CheckBoxState::Checked
             } else {

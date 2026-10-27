@@ -28,50 +28,26 @@ const ECS_ENABLED: u32 = 0;
 const ECS_HIDDEN: u32 = 2;
 const ECF_HASSUBCOMMANDS: u32 = 1;
 
-const IMAGE_EXTS: &[&str] = &[
-    "png", "jpg", "jpeg", "webp", "bmp", "gif", "tif", "tiff", "ico", "heic", "heif",
-];
-const VIDEO_EXTS: &[&str] = &[
-    "mp4", "mkv", "mov", "avi", "webm", "m4v", "wmv", "flv", "ts", "mts", "m2ts", "hevc", "265",
-    "h265", "av1", "ivf",
-];
-const AUDIO_EXTS: &[&str] = &[
-    "mp3", "wav", "flac", "ogg", "oga", "m4a", "aac", "opus", "wma", "aiff", "aif",
-];
-const FONT_EXTS: &[&str] = &["ttf", "otf", "woff", "woff2"];
-const SCHEMATIC_EXTS: &[&str] = &["litematic", "schem", "schematic", "nbt", "bp", "axiom"];
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum SelectionKind {
-    Audio,
-    Font,
-    Image,
-    Video,
-    Schematic,
-    Other,
-}
-
 #[derive(Clone)]
 struct ActionSpec {
     key: String,
     title: String,
     extensions: Vec<String>,
+    category: String,
+}
+
+#[derive(Clone)]
+struct CategorySpec {
+    title: String,
+    actions: Vec<ActionSpec>,
 }
 
 #[implement(IExplorerCommand)]
 struct RootCommand;
 
 impl IExplorerCommand_Impl for RootCommand_Impl {
-    fn GetTitle(&self, items: Ref<IShellItemArray>) -> windows::core::Result<PWSTR> {
-        let title = match selected_kind(items) {
-            SelectionKind::Audio => "音声を変換",
-            SelectionKind::Font => "フォントを変換",
-            SelectionKind::Image => "画像を変換",
-            SelectionKind::Video => "動画を変換",
-            SelectionKind::Schematic => "構造物を変換",
-            SelectionKind::Other => "変換",
-        };
-        Ok(to_pwstr(title))
+    fn GetTitle(&self, _items: Ref<IShellItemArray>) -> windows::core::Result<PWSTR> {
+        Ok(to_pwstr("変換"))
     }
 
     fn GetIcon(&self, _items: Ref<IShellItemArray>) -> windows::core::Result<PWSTR> {
@@ -118,9 +94,68 @@ impl IExplorerCommand_Impl for RootCommand_Impl {
     }
 
     fn EnumSubCommands(&self) -> windows::core::Result<IEnumExplorerCommand> {
-        let items = enabled_actions();
-        let enumerator = EnumCommands {
+        let items = enabled_categories();
+        let enumerator = EnumCategories {
             items: Arc::new(items),
+            index: AtomicUsize::new(0),
+        };
+        Ok(enumerator.into())
+    }
+}
+
+#[implement(IExplorerCommand)]
+struct CategoryCommand {
+    spec: CategorySpec,
+}
+
+impl IExplorerCommand_Impl for CategoryCommand_Impl {
+    fn GetTitle(&self, _items: Ref<IShellItemArray>) -> windows::core::Result<PWSTR> {
+        Ok(to_pwstr(&self.spec.title))
+    }
+
+    fn GetIcon(&self, _items: Ref<IShellItemArray>) -> windows::core::Result<PWSTR> {
+        Err(E_NOTIMPL.into())
+    }
+
+    fn GetToolTip(&self, _items: Ref<IShellItemArray>) -> windows::core::Result<PWSTR> {
+        Err(E_NOTIMPL.into())
+    }
+
+    fn GetCanonicalName(&self) -> windows::core::Result<GUID> {
+        Ok(guid_for(&format!("category/{}", self.spec.title)))
+    }
+
+    fn GetState(&self, items: Ref<IShellItemArray>, _slow: BOOL) -> windows::core::Result<u32> {
+        let files = paths_from_items(items);
+        if files.is_empty() {
+            return Ok(ECS_ENABLED);
+        }
+        if self.spec.actions.iter().any(|action| {
+            files
+                .iter()
+                .any(|file| matches_extension(file, &action.extensions))
+        }) {
+            Ok(ECS_ENABLED)
+        } else {
+            Ok(ECS_HIDDEN)
+        }
+    }
+
+    fn Invoke(
+        &self,
+        _items: Ref<IShellItemArray>,
+        _bind: Ref<IBindCtx>,
+    ) -> windows::core::Result<()> {
+        Ok(())
+    }
+
+    fn GetFlags(&self) -> windows::core::Result<u32> {
+        Ok(ECF_HASSUBCOMMANDS)
+    }
+
+    fn EnumSubCommands(&self) -> windows::core::Result<IEnumExplorerCommand> {
+        let enumerator = EnumCommands {
+            items: Arc::new(self.spec.actions.clone()),
             index: AtomicUsize::new(0),
         };
         Ok(enumerator.into())
@@ -253,6 +288,71 @@ impl IEnumExplorerCommand_Impl for EnumCommands_Impl {
     }
 }
 
+#[implement(IEnumExplorerCommand)]
+struct EnumCategories {
+    items: Arc<Vec<CategorySpec>>,
+    index: AtomicUsize,
+}
+
+impl IEnumExplorerCommand_Impl for EnumCategories_Impl {
+    fn Next(
+        &self,
+        celt: u32,
+        commands: *mut Option<IExplorerCommand>,
+        fetched: *mut u32,
+    ) -> HRESULT {
+        if commands.is_null() {
+            return E_POINTER;
+        }
+
+        let start = self.index.load(Ordering::SeqCst);
+        let mut count = 0usize;
+        for offset in 0..celt as usize {
+            let Some(spec) = self.items.get(start + offset).cloned() else {
+                break;
+            };
+            let command: IExplorerCommand = CategoryCommand { spec }.into();
+            unsafe {
+                commands.add(offset).write(Some(command));
+            }
+            count += 1;
+        }
+
+        if !fetched.is_null() {
+            unsafe {
+                *fetched = count as u32;
+            }
+        }
+        self.index.fetch_add(count, Ordering::SeqCst);
+
+        if count == celt as usize {
+            S_OK
+        } else {
+            S_FALSE
+        }
+    }
+
+    fn Skip(&self, celt: u32) -> windows::core::Result<()> {
+        let start = self.index.load(Ordering::SeqCst);
+        let next = (start + celt as usize).min(self.items.len());
+        self.index.store(next, Ordering::SeqCst);
+        Ok(())
+    }
+
+    fn Reset(&self) -> windows::core::Result<()> {
+        self.index.store(0, Ordering::SeqCst);
+        Ok(())
+    }
+
+    fn Clone(&self) -> windows::core::Result<IEnumExplorerCommand> {
+        let clone = EnumCategories {
+            items: self.items.clone(),
+            index: AtomicUsize::new(self.index.load(Ordering::SeqCst)),
+        };
+        Ok(clone.into())
+    }
+}
+
 #[implement(IClassFactory)]
 struct Factory;
 
@@ -321,8 +421,44 @@ fn enabled_actions() -> Vec<ActionSpec> {
             key: action.key(),
             title: action.action.name.clone(),
             extensions: action.plugin.manifest.extensions.clone(),
+            category: action.category(),
         })
         .collect()
+}
+
+fn enabled_categories() -> Vec<CategorySpec> {
+    let mut categories: Vec<CategorySpec> = Vec::new();
+    for action in enabled_actions() {
+        let category = action.category.clone();
+        if let Some(existing) = categories
+            .iter_mut()
+            .find(|existing| existing.title == category)
+        {
+            existing.actions.push(action);
+        } else {
+            categories.push(CategorySpec {
+                title: category,
+                actions: vec![action],
+            });
+        }
+    }
+    categories.sort_by(|a, b| {
+        category_rank(&a.title)
+            .cmp(&category_rank(&b.title))
+            .then_with(|| a.title.cmp(&b.title))
+    });
+    categories
+}
+
+fn category_rank(title: &str) -> i32 {
+    match title {
+        "動画に変換" => 10,
+        "音声に変換" => 20,
+        "画像に変換" => 30,
+        "フォントに変換" => 40,
+        "構造物に変換" => 50,
+        _ => 100,
+    }
 }
 
 fn module_dir() -> Option<PathBuf> {
@@ -388,44 +524,6 @@ fn paths_from_items(items: Ref<IShellItemArray>) -> Vec<String> {
         }
     }
     files
-}
-
-fn selected_kind(items: Ref<IShellItemArray>) -> SelectionKind {
-    let files = paths_from_items(items);
-    if files.is_empty() {
-        return SelectionKind::Other;
-    }
-    let mut all_audio = true;
-    let mut all_font = true;
-    let mut all_image = true;
-    let mut all_schematic = true;
-    let mut all_video = true;
-
-    for file in &files {
-        let ext = Path::new(file)
-            .extension()
-            .and_then(|value| value.to_str())
-            .unwrap_or("")
-            .to_ascii_lowercase();
-        all_audio &= AUDIO_EXTS.contains(&ext.as_str());
-        all_font &= FONT_EXTS.contains(&ext.as_str());
-        all_image &= IMAGE_EXTS.contains(&ext.as_str());
-        all_schematic &= SCHEMATIC_EXTS.contains(&ext.as_str());
-        all_video &= VIDEO_EXTS.contains(&ext.as_str());
-    }
-    if all_audio {
-        SelectionKind::Audio
-    } else if all_font {
-        SelectionKind::Font
-    } else if all_image {
-        SelectionKind::Image
-    } else if all_video {
-        SelectionKind::Video
-    } else if all_schematic {
-        SelectionKind::Schematic
-    } else {
-        SelectionKind::Other
-    }
 }
 
 fn matches_extension(path: &str, extensions: &[String]) -> bool {
@@ -507,6 +605,16 @@ mod tests {
                 .to_string()
                 .expect("title is not valid UTF-16");
             assert!(!sub_title.is_empty());
+            assert_ne!(
+                sub.GetFlags().expect("GetFlags failed") & ECF_HASSUBCOMMANDS,
+                0
+            );
+
+            let actions = sub.EnumSubCommands().expect("nested subcommands failed");
+            let mut action_items: [Option<IExplorerCommand>; 1] = [None];
+            let hr = actions.Next(&mut action_items, None);
+            assert!(hr.is_ok());
+            assert!(action_items[0].is_some());
         }
     }
 
@@ -548,9 +656,9 @@ mod tests {
                     .to_string()
                     .expect("utf16")
             };
-            assert_eq!(title(&png), "画像を変換");
-            assert_eq!(title(&mp4), "動画を変換");
-            assert_eq!(title(&ico), "画像を変換");
+            assert_eq!(title(&png), "変換");
+            assert_eq!(title(&mp4), "変換");
+            assert_eq!(title(&ico), "変換");
             assert_eq!(title(&txt), "変換");
 
             let state = |path: &Path| {

@@ -30,6 +30,8 @@ pub struct Manifest {
     #[serde(default)]
     pub actions: Vec<Action>,
     #[serde(default)]
+    pub category: Option<String>,
+    #[serde(default)]
     pub runtime: Runtime,
     pub entry: String,
 }
@@ -40,6 +42,8 @@ pub struct Action {
     pub name: String,
     #[serde(default)]
     pub description: Option<String>,
+    #[serde(default)]
+    pub category: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -61,6 +65,21 @@ impl ActionEntry {
 
     pub fn label(&self) -> &str {
         &self.action.name
+    }
+
+    pub fn category(&self) -> String {
+        let category = self
+            .action
+            .category
+            .as_deref()
+            .or(self.plugin.manifest.category.as_deref())
+            .unwrap_or(&self.plugin.manifest.name)
+            .trim();
+        if category.is_empty() {
+            self.plugin.manifest.name.clone()
+        } else {
+            category.to_string()
+        }
     }
 
     pub fn matches_extension(&self, ext: &str) -> bool {
@@ -88,6 +107,7 @@ impl Plugin {
                 id: "default".to_string(),
                 name: self.manifest.name.clone(),
                 description: None,
+                category: None,
             }]
         } else {
             self.manifest.actions.clone()

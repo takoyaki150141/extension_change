@@ -1,6 +1,7 @@
 {
   "id": "image-convert",
   "name": "画像変換",
+  "category": "画像に変換",
   "description": "画像を PNG / JPG / WebP / BMP / GIF / TIFF / ICO に変換します。",
   "extensions": ["png", "jpg", "jpeg", "webp", "bmp", "gif", "tif", "tiff", "ico", "heic", "heif"],
   "actions": [

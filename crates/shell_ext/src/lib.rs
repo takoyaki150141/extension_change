@@ -115,7 +115,7 @@ impl IExplorerCommand_Impl for RootCommand_Impl {
     }
 
     fn EnumSubCommands(&self) -> windows::core::Result<IEnumExplorerCommand> {
-        let items = flat_major_actions();
+        let items = flat_actions();
         let enumerator = EnumCommands {
             items: Arc::new(items),
             index: AtomicUsize::new(0),
@@ -367,6 +367,9 @@ impl IExplorerCommand_Impl for ActionCommand_Impl {
     }
 
     fn GetState(&self, items: Ref<IShellItemArray>, _slow: BOOL) -> windows::core::Result<u32> {
+        if self.spec.key.starts_with("__separator/") {
+            return Ok(ECS_ENABLED);
+        }
         let files = paths_from_items(items);
         if files.is_empty() {
             return Ok(ECS_ENABLED);
@@ -397,7 +400,11 @@ impl IExplorerCommand_Impl for ActionCommand_Impl {
     }
 
     fn GetFlags(&self) -> windows::core::Result<u32> {
-        Ok(0)
+        if self.spec.key.starts_with("__separator/") {
+            Ok(8)
+        } else {
+            Ok(0)
+        }
     }
 
     fn EnumSubCommands(&self) -> windows::core::Result<IEnumExplorerCommand> {
@@ -608,36 +615,24 @@ fn enabled_actions() -> Vec<ActionSpec> {
         .collect()
 }
 
-const MAJOR_ACTIONS: &[&str] = &[
-    "image-convert/png",
-    "image-convert/jpg",
-    "video-convert/mp4",
-    "video-convert/mkv",
-    "audio-convert/mp3",
-    "audio-convert/wav",
-    "mesh-convert/obj",
-    "mesh-convert/ply",
-    "excel-to-csv/xlsx2csv",
-    "csv-to-excel/csv2xlsx",
-    "minecraft-schematic/litematica",
-    "minecraft-schematic/schem",
-    "minecraft-schematic/bp",
-    "minecraft-schematic/nbt",
-    "minecraft-schematic/schematic",
-    "ffmpeg-other/convert",
-];
-
-fn flat_major_actions() -> Vec<ActionSpec> {
-    let actions = enabled_actions();
-    MAJOR_ACTIONS
-        .iter()
-        .filter_map(|key| actions.iter().find(|action| action.key == *key).cloned())
-        .map(|mut action| {
-            let category = action.category.trim_end_matches("に変換");
-            action.title = format!("{category}: {}", action.title);
-            action
-        })
-        .collect()
+fn flat_actions() -> Vec<ActionSpec> {
+    let mut out = Vec::new();
+    for (index, category) in enabled_categories().into_iter().enumerate() {
+        if index > 0 {
+            out.push(ActionSpec {
+                key: format!("__separator/{index}"),
+                title: String::new(),
+                extensions: vec!["*".to_string()],
+                category: category.title.clone(),
+            });
+        }
+        let label = category.title.trim_end_matches("に変換").to_string();
+        for mut action in category.actions {
+            action.title = format!("{label}: {}", action.title);
+            out.push(action);
+        }
+    }
+    out
 }
 fn enabled_categories() -> Vec<CategorySpec> {
     let mut categories: Vec<CategorySpec> = Vec::new();

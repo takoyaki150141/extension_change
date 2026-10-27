@@ -35,10 +35,28 @@ Copy-Item -LiteralPath (Join-Path $PSScriptRoot "register_classic.ps1") -Destina
 
 $manifest = [xml](Get-Content (Join-Path $PSScriptRoot "AppxManifest.xml") -Raw)
 $version = (($manifest.Package.Identity.Version -split '\.')[0..2] -join '.')
+$versionFull = $manifest.Package.Identity.Version
+$publisher = $manifest.Package.Identity.Publisher
+$base = "https://github.com/takoyaki150141/extension_change/releases/latest/download"
+$appinstaller = @"
+<?xml version="1.0" encoding="utf-8"?>
+<AppInstaller Uri="$base/ExtensionChange.appinstaller" Version="$versionFull" xmlns="http://schemas.microsoft.com/appx/appinstaller/2018">
+  <MainPackage Name="ExtensionChange" Version="$versionFull" Publisher="$publisher" ProcessorArchitecture="x64" Uri="$base/ExtensionChange.msix" />
+  <UpdateSettings>
+    <OnLaunch HoursBetweenUpdateChecks="0" ShowPrompt="true" UpdateBlocksActivation="false" />
+    <AutomaticBackgroundTask />
+  </UpdateSettings>
+</AppInstaller>
+"@
+$appinstallerPath = Join-Path $Release "ExtensionChange.appinstaller"
+[IO.File]::WriteAllText($appinstallerPath, $appinstaller, [Text.UTF8Encoding]::new($false))
+Copy-Item -LiteralPath $appinstallerPath -Destination $Dist -Force
+Copy-Item -LiteralPath (Join-Path $Release "ExtensionChange.msix") -Destination $Dist -Force
+Copy-Item -LiteralPath (Join-Path $Release "ExtensionChange.cer") -Destination $Dist -Force
 $zip = Join-Path $Dist "ExtensionChange-$version.zip"
 Remove-Item -LiteralPath $zip -Force -ErrorAction SilentlyContinue
 Compress-Archive -Path (Join-Path $Release "*") -DestinationPath $zip -Force
 
 Write-Host ""
 Write-Host "配布用ファイル: $zip"
-Write-Host "受け取る人は展開して install_prebuilt.ps1 を実行します。"
+Write-Host "受け取る人は展開して install.bat を実行します。"

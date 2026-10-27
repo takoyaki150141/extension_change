@@ -21,6 +21,7 @@ if (-not (Test-Admin)) {
 
 $msix = Join-Path $PSScriptRoot "ExtensionChange.msix"
 $cer = Join-Path $PSScriptRoot "ExtensionChange.cer"
+$appinstaller = Join-Path $PSScriptRoot "ExtensionChange.appinstaller"
 
 if (-not (Test-Path -LiteralPath $msix)) {
     throw "ExtensionChange.msix が見つかりません: $msix"
@@ -41,7 +42,16 @@ if ($old) {
     Remove-AppxPackage -Package $old.PackageFullName
 }
 
-Add-AppxPackage -Path $msix -ForceApplicationShutdown
+if (Test-Path -LiteralPath $appinstaller) {
+    try {
+        Add-AppxPackage -Path $appinstaller -AppInstallerFile
+    } catch {
+        Write-Warning "App Installer でのインストールに失敗しました。直接インストールします: $_"
+        Add-AppxPackage -Path $msix -ForceApplicationShutdown
+    }
+} else {
+    Add-AppxPackage -Path $msix -ForceApplicationShutdown
+}
 
 $installed = Get-AppxPackage -Name "ExtensionChange" -ErrorAction SilentlyContinue
 if ($installed) {

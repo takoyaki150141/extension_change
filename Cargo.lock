@@ -299,7 +299,7 @@ dependencies = [
 
 [[package]]
 name = "extension_change_core"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -307,7 +307,7 @@ dependencies = [
 
 [[package]]
 name = "extension_change_host"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "embed-resource",
@@ -324,7 +324,7 @@ dependencies = [
 
 [[package]]
 name = "extension_change_shell"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "extension_change_core",
  "windows",

@@ -49,7 +49,7 @@ Windows 11 の右クリックメニューからファイルを変換するツー
 powershell -ExecutionPolicy Bypass -File packaging\install.ps1
 ```
 
-Windows 11 では新しい右クリックメニュー、Windows 10 ではクラシック右クリックメニューに登録します。クラシック側はインストール時に現在のユーザーのレジストリへ登録します。
+Windows 11 では新しい右クリックメニュー、Windows 10 ではクラシック右クリックメニューに登録します。クラシック側はインストール時に現在のユーザーのレジストリへ登録します。\n\n### 自動更新\n\n配布 zip の `install.bat` は App Installer 経由でインストールし、自動更新を有効にします。初回だけ証明書を信頼して App Installer に登録し、以後は起動時とバックグラウンドで GitHub Releases の最新版を確認します。\n\n旧版を MSIX の直接インストールで入れている場合は、新しい `install.bat` で一度入れ直すと自動更新の対象になります。ソースから `install.ps1` で入れた場合は自動更新の対象外です。
 
 ## 配布用
 
@@ -59,7 +59,7 @@ Windows 11 では新しい右クリックメニュー、Windows 10 ではクラ�
 powershell -ExecutionPolicy Bypass -File packaging\make_release.ps1
 ```
 
-`dist\ExtensionChange-0.6.0.zip` ができます。中身は MSIX、公開証明書（`.cer`）、`install_prebuilt.ps1` です。受け取った人は zip を展開して `install.bat` をダブルクリックします。UAC の確認後、インストールされます。証明書は zip に含まれるので、受け取る側で証明書を用意する必要はありません。秘密鍵は含まれません。
+`dist\ExtensionChange-0.7.0.zip` ができます。中身は MSIX、App Installer 用の `ExtensionChange.appinstaller`、公開証明書（`.cer`）、`install.bat`、`install_prebuilt.ps1`、`register_classic.ps1` です。受け取った人は zip を展開して `install.bat` をダブルクリックします。UAC の確認後、インストールされます。証明書は zip に含まれるので、受け取る側で証明書を用意する必要はありません。秘密鍵は含まれません。
 
 既存の MSIX と証明書を使う場合は `-Build` を付けません。ビルドし直す場合は `-Build` を付けます。ビルド自体に管理者権限は不要です。インストール時に証明書を信頼するため管理者権限が必要です。
 

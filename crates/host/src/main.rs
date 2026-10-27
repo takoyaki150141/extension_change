@@ -5,7 +5,9 @@ mod gui;
 mod mcp;
 mod ui_style;
 
+use std::os::windows::process::CommandExt;
 use std::path::PathBuf;
+use std::process::Command;
 use std::sync::Arc;
 
 use anyhow::{bail, Context as _};
@@ -30,6 +32,7 @@ fn main() {
 
 fn run() -> anyhow::Result<()> {
     let args = parse_args()?;
+    ensure_classic_menu();
     let base = std::env::current_exe()
         .ok()
         .and_then(|p| p.parent().map(|p| p.to_path_buf()))
@@ -122,6 +125,51 @@ fn run() -> anyhow::Result<()> {
     .map_err(|e| anyhow::anyhow!(e))
 }
 
+fn ensure_classic_menu() {
+    let Ok(exe) = std::env::current_exe() else {
+        return;
+    };
+    let exe_text = exe.to_string_lossy().to_ascii_lowercase();
+    if !exe_text.contains("\\windowsapps\\") {
+        return;
+    }
+    let Some(dir) = exe.parent() else {
+        return;
+    };
+    let dll = dir.join("shell_ext.dll");
+    if !dll.is_file() {
+        return;
+    }
+
+    let clsid = "{1f3d8c2a-9e4b-4b7a-8c2d-6e5f4a3b2c10}";
+    let handler = "HKCU\\Software\\Classes\\*\\shellex\\ContextMenuHandlers\\ExtensionChange";
+    let class = format!("HKCU\\Software\\Classes\\CLSID\\{clsid}");
+    let inproc = format!("{class}\\InprocServer32");
+    let dll_text = dll.to_string_lossy();
+
+    for (key, value) in [
+        (handler, clsid),
+        (class.as_str(), "Extension Change"),
+        (inproc.as_str(), dll_text.as_ref()),
+    ] {
+        let _ = Command::new("reg.exe")
+            .args(["add", key, "/ve", "/d", value, "/f"])
+            .creation_flags(0x0800_0000)
+            .status();
+    }
+    let _ = Command::new("reg.exe")
+        .args([
+            "add",
+            inproc.as_str(),
+            "/v",
+            "ThreadingModel",
+            "/d",
+            "Apartment",
+            "/f",
+        ])
+        .creation_flags(0x0800_0000)
+        .status();
+}
 fn parse_args() -> anyhow::Result<Args> {
     let mut args = Args {
         files: Vec::new(),

@@ -1,0 +1,11 @@
+{
+  "id": "excel-to-csv",
+  "name": "Excel→CSV",
+  "category": "文書に変換",
+  "description": "Excel を CSV に変換します。",
+  "extensions": ["xlsx", "xls"],
+  "actions": [
+    { "id": "xlsx2csv", "name": "CSVに変換" }
+  ],
+  "entry": "index.js"
+}

@@ -1,0 +1,13 @@
+{
+  "id": "mesh-convert",
+  "name": "3D変換",
+  "category": "3Dに変換",
+  "description": "OBJ / PLY / OFF のメッシュを変換します。",
+  "extensions": ["obj", "ply", "off"],
+  "actions": [
+    { "id": "obj", "name": "OBJに変換" },
+    { "id": "ply", "name": "PLYに変換" },
+    { "id": "off", "name": "OFFに変換" }
+  ],
+  "entry": "index.js"
+}

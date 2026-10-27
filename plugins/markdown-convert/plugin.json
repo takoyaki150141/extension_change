@@ -1,0 +1,12 @@
+{
+  "id": "markdown-convert",
+  "name": "Markdown",
+  "category": "文書に変換",
+  "description": "Markdown を HTML / EPUB に変換します。",
+  "extensions": ["md", "markdown"],
+  "actions": [
+    { "id": "md2html", "name": "Markdown→HTML" },
+    { "id": "md2epub", "name": "Markdown→EPUB" }
+  ],
+  "entry": "index.js"
+}

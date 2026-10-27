@@ -16,7 +16,8 @@
     { "id": "aiff", "name": "AIFFに変換" },
     { "id": "alac", "name": "ALACに変換" },
     { "id": "ac3", "name": "AC3に変換" },
-    { "id": "eac3", "name": "EAC3に変換" }
+    { "id": "eac3", "name": "EAC3に変換" },
+    { "id": "movaudio", "name": "MOV（音声）に変換", "category": "動画に変換" }
   ],
   "entry": "index.js"
 }

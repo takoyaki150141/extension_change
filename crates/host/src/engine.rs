@@ -333,6 +333,55 @@ fn run_js(
         )
         .map_err(|e| anyhow!("{e}"))?;
 
+        let mesh_fn = convert.clone();
+        let mesh_js = Function::new(
+            ctx.clone(),
+            move |path: String, format: String, options: String| -> String {
+                match mesh_fn.mesh(&path, &format, &options) {
+                    Ok(path) => serde_json::json!({ "ok": true, "path": path }).to_string(),
+                    Err(e) => {
+                        serde_json::json!({ "ok": false, "error": e.to_string() }).to_string()
+                    }
+                }
+            },
+        )
+        .map_err(|e| anyhow!("{e}"))?;
+
+        let excel_csv_fn = convert.clone();
+        let excel_to_csv_js = Function::new(ctx.clone(), move |path: String| -> String {
+            match excel_csv_fn.excel_to_csv(&path) {
+                Ok(path) => serde_json::json!({ "ok": true, "path": path }).to_string(),
+                Err(e) => serde_json::json!({ "ok": false, "error": e.to_string() }).to_string(),
+            }
+        })
+        .map_err(|e| anyhow!("{e}"))?;
+
+        let csv_excel_fn = convert.clone();
+        let csv_to_excel_js = Function::new(ctx.clone(), move |path: String| -> String {
+            match csv_excel_fn.csv_to_excel(&path) {
+                Ok(path) => serde_json::json!({ "ok": true, "path": path }).to_string(),
+                Err(e) => serde_json::json!({ "ok": false, "error": e.to_string() }).to_string(),
+            }
+        })
+        .map_err(|e| anyhow!("{e}"))?;
+
+        let md_html_fn = convert.clone();
+        let markdown_to_html_js = Function::new(ctx.clone(), move |path: String| -> String {
+            match md_html_fn.markdown_to_html(&path) {
+                Ok(path) => serde_json::json!({ "ok": true, "path": path }).to_string(),
+                Err(e) => serde_json::json!({ "ok": false, "error": e.to_string() }).to_string(),
+            }
+        })
+        .map_err(|e| anyhow!("{e}"))?;
+
+        let md_epub_fn = convert.clone();
+        let markdown_to_epub_js = Function::new(ctx.clone(), move |path: String| -> String {
+            match md_epub_fn.markdown_to_epub(&path) {
+                Ok(path) => serde_json::json!({ "ok": true, "path": path }).to_string(),
+                Err(e) => serde_json::json!({ "ok": false, "error": e.to_string() }).to_string(),
+            }
+        })
+        .map_err(|e| anyhow!("{e}"))?;
         let font_fn = convert.clone();
         let font_js = Function::new(
             ctx.clone(),
@@ -380,6 +429,21 @@ fn run_js(
             .set("__fontRaw", font_js)
             .map_err(|e| anyhow!("{e}"))?;
         globals
+            .set("__excelToCsvRaw", excel_to_csv_js)
+            .map_err(|e| anyhow!("{e}"))?;
+        globals
+            .set("__csvToExcelRaw", csv_to_excel_js)
+            .map_err(|e| anyhow!("{e}"))?;
+        globals
+            .set("__markdownToHtmlRaw", markdown_to_html_js)
+            .map_err(|e| anyhow!("{e}"))?;
+        globals
+            .set("__markdownToEpubRaw", markdown_to_epub_js)
+            .map_err(|e| anyhow!("{e}"))?;
+        globals
+            .set("__meshRaw", mesh_js)
+            .map_err(|e| anyhow!("{e}"))?;
+        globals
             .set("__schematicRaw", schematic_js)
             .map_err(|e| anyhow!("{e}"))?;
 
@@ -400,6 +464,36 @@ fn run_js(
       const p = (f && typeof f === "object") ? f.path : f;
       const r = JSON.parse(__convertRaw(String(p), String(fmt), JSON.stringify(opts || {{}})));
       if (!r.ok) throw new Error(r.error || "convert failed");
+      return r.path;
+    }},
+    excelToCsv: function (f) {{
+      const p = (f && typeof f === "object") ? f.path : f;
+      const r = JSON.parse(__excelToCsvRaw(String(p)));
+      if (!r.ok) throw new Error(r.error || "Excel to CSV failed");
+      return r.path;
+    }},
+    csvToExcel: function (f) {{
+      const p = (f && typeof f === "object") ? f.path : f;
+      const r = JSON.parse(__csvToExcelRaw(String(p)));
+      if (!r.ok) throw new Error(r.error || "CSV to Excel failed");
+      return r.path;
+    }},
+    markdownToHtml: function (f) {{
+      const p = (f && typeof f === "object") ? f.path : f;
+      const r = JSON.parse(__markdownToHtmlRaw(String(p)));
+      if (!r.ok) throw new Error(r.error || "Markdown to HTML failed");
+      return r.path;
+    }},
+    markdownToEpub: function (f) {{
+      const p = (f && typeof f === "object") ? f.path : f;
+      const r = JSON.parse(__markdownToEpubRaw(String(p)));
+      if (!r.ok) throw new Error(r.error || "Markdown to EPUB failed");
+      return r.path;
+    }},
+    mesh: function (f, fmt, opts) {{
+      const p = (f && typeof f === "object") ? f.path : f;
+      const r = JSON.parse(__meshRaw(String(p), String(fmt), JSON.stringify(opts || {{}})));
+      if (!r.ok) throw new Error(r.error || "mesh conversion failed");
       return r.path;
     }},
     name: function (f, ext) {{
@@ -617,6 +711,7 @@ impl ConvertContext {
                 | "alac"
                 | "ac3"
                 | "eac3"
+                | "movaudio"
         ) {
             bail!("unsupported video format: {format}");
         }
@@ -628,6 +723,7 @@ impl ConvertContext {
             "hevc" => "mp4",
             "av1" => "mkv",
             "alac" => "m4a",
+            "movaudio" => "mov",
             other => other,
         };
         let target = PathBuf::from(self.target_name_for(&input.to_string_lossy(), target_format)?);
@@ -929,7 +1025,16 @@ impl ConvertContext {
                     .arg("eac3")
                     .arg("-b:a")
                     .arg("192k");
-            }            _ => unreachable!(),
+            }
+            "movaudio" => {
+                command
+                    .arg("-vn")
+                    .arg("-c:a")
+                    .arg("aac")
+                    .arg("-b:a")
+                    .arg("192k");
+            }
+            _ => unreachable!(),
         }
 
         command.arg(&target);
@@ -946,6 +1051,50 @@ impl ConvertContext {
             }
         }
 
+        (self.emit)(JobEvent::FileDone {
+            input: input.clone(),
+            output: target.clone(),
+        });
+        Ok(target.to_string_lossy().to_string())
+    }
+    fn document_convert(
+        &self,
+        path: &str,
+        target_ext: &str,
+        convert: fn(&Path, &Path) -> anyhow::Result<()>,
+    ) -> anyhow::Result<String> {
+        let input = self.checked_input(path)?;
+        let target = PathBuf::from(
+            self.target_name_for(&input.to_string_lossy(), target_ext)?,
+        );
+        convert(&input, &target)?;
+        (self.emit)(JobEvent::FileDone {
+            input: input.clone(),
+            output: target.clone(),
+        });
+        Ok(target.to_string_lossy().to_string())
+    }
+
+    pub fn excel_to_csv(&self, path: &str) -> anyhow::Result<String> {
+        self.document_convert(path, "csv", crate::document::excel_to_csv)
+    }
+
+    pub fn csv_to_excel(&self, path: &str) -> anyhow::Result<String> {
+        self.document_convert(path, "xlsx", crate::document::csv_to_excel)
+    }
+
+    pub fn markdown_to_html(&self, path: &str) -> anyhow::Result<String> {
+        self.document_convert(path, "html", crate::document::markdown_to_html)
+    }
+
+    pub fn markdown_to_epub(&self, path: &str) -> anyhow::Result<String> {
+        self.document_convert(path, "epub", crate::document::markdown_to_epub)
+    }
+    pub fn mesh(&self, path: &str, format: &str, _options: &str) -> anyhow::Result<String> {
+        let input = self.checked_input(path)?;
+        let ext = normalize_mesh_ext(format)?;
+        let target = PathBuf::from(self.target_name_for(&input.to_string_lossy(), &ext)?);
+        crate::mesh::convert(&input, &target, &ext)?;
         (self.emit)(JobEvent::FileDone {
             input: input.clone(),
             output: target.clone(),
@@ -1130,6 +1279,14 @@ fn ffmpeg_path() -> Option<PathBuf> {
     }
     None
 }
+fn normalize_mesh_ext(ext: &str) -> anyhow::Result<String> {
+    let ext = ext.trim().trim_start_matches('.').to_ascii_lowercase();
+    match ext.as_str() {
+        "obj" | "ply" | "off" => Ok(ext),
+        _ => bail!("unsupported 3D output format: {ext}"),
+    }
+}
+
 fn normalize_ext(ext: &str) -> anyhow::Result<String> {
     let ext = ext.trim().trim_start_matches('.').to_ascii_lowercase();
     match ext.as_str() {

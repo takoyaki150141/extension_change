@@ -1,6 +1,6 @@
 # Extension Change
 
-Windows 11 / Windows 10 の右クリックメニューからファイルを変換するツールです。画像、動画、音声、フォント、Minecraft の構造物に対応しています。変換の手順は JS プラグインで追加できます。C# と Rust のネイティブプラグインにも対応しています。
+Windows 11 / Windows 10 の右クリックメニューからファイルを変換するツールです。画像、動画、音声、フォント、3D メッシュ、Minecraft の構造物に対応しています。変換の手順は JS プラグインで追加できます。C# と Rust のネイティブプラグインにも対応しています。
 
 ## 対応形式
 
@@ -21,7 +21,7 @@ Windows 11 / Windows 10 の右クリックメニューからファイルを変�
 ### 音声
 
 - 入力: MP3 / WAV / FLAC / OGG / M4A / AAC / OPUS / WMA / AIFF / AC3 / EAC3 / MKA
-- 出力: MP3 / WAV / FLAC / OGG / M4A / OPUS / AAC / WMA / AIFF / ALAC / AC3 / EAC3
+- 出力: MP3 / WAV / FLAC / OGG / M4A / OPUS / AAC / WMA / AIFF / ALAC / AC3 / EAC3 / MOV（音声）
 
 ### フォント
 
@@ -35,6 +35,13 @@ Windows 11 / Windows 10 の右クリックメニューからファイルを変�
 - `.schem`（WorldEdit / Sponge v3）
 - `.schematic`（MCEdit）
 - `.bp`（Axiom）
+
+### 3D メッシュ
+
+- 入力 / 出力: OBJ / PLY / OFF
+- 面を多角形のまま保持します。三角形化しないため、凹んだ多角形も形を変えずに変換できます。
+- マテリアル、テクスチャ、UV、法線は保持しません。
+- GLTF / GLB / FBX / 3MF は未対応です。\n\n### 文書\n\n- Excel → CSV\n- CSV → Excel\n- Markdown → HTML\n- Markdown → EPUB\n- Excel の複数シート、数式、書式は一部失われます。Markdown の画像は出力に含まれません。
 
 ## 必要環境
 
@@ -60,7 +67,7 @@ Windows 11 では新しい右クリックメニュー、Windows 10 ではクラ�
 powershell -ExecutionPolicy Bypass -File packaging\make_release.ps1
 ```
 
-`dist\ExtensionChange-0.8.0.zip` ができます。中身は MSIX、App Installer 用の `ExtensionChange.appinstaller`、公開証明書（`.cer`）、`install.bat`、`install_prebuilt.ps1`、`register_classic.ps1` です。受け取った人は zip を展開して `install.bat` をダブルクリックします。UAC の確認後、インストールされます。証明書は zip に含まれるので、受け取る側で証明書を用意する必要はありません。秘密鍵は含まれません。
+`dist\ExtensionChange-0.10.0.zip` ができます。中身は MSIX、App Installer 用の `ExtensionChange.appinstaller`、公開証明書（`.cer`）、`install.bat`、`install_prebuilt.ps1`、`register_classic.ps1` です。受け取った人は zip を展開して `install.bat` をダブルクリックします。UAC の確認後、インストールされます。証明書は zip に含まれるので、受け取る側で証明書を用意する必要はありません。秘密鍵は含まれません。
 
 既存の MSIX と証明書を使う場合は `-Build` を付けません。ビルドし直す場合は `-Build` を付けます。ビルド自体に管理者権限は不要です。インストール時に証明書を信頼するため管理者権限が必要です。
 
@@ -80,7 +87,7 @@ powershell -ExecutionPolicy Bypass -File packaging\uninstall.ps1
 - フォント: 「変換」→「フォントに変換」
 - 画像: 「変換」→「画像に変換」
 - 動画: 「変換」→「動画に変換」「音声に変換」「画像に変換」
-- 構造物: 「変換」→「構造物に変換」
+- 構造物: 「変換」→「構造物に変換」\n- 3D: 「変換」→「3Dに変換」\n- 文書: 「変換」→「文書に変換」
 - 新しい分類: 「変換」→ プラグインが定義した分類（対応する操作がある場合だけ表示）
 
 右クリックから実行した場合は、小さな進捗画面だけが表示されます。完了すると自動で閉じます。
@@ -185,7 +192,7 @@ module.exports = function (ctx) {
 | `video(file, format, options)` | 動画を変換し、出力パスを返す |
 | `audio(file, format, options)` | 音声を変換し、出力パスを返す |
 | `font(file, format, options)` | フォントを変換し、出力パスを返す |
-| `schematic(file, format, options)` | Minecraft の構造物を変換し、出力パスを返す |
+| `schematic(file, format, options)` | Minecraft の構造物を変換し、出力パスを返す |\n| `mesh(file, format, options)` | OBJ / PLY / OFF のメッシュを変換し、出力パスを返す |\n| `excelToCsv(file)` | Excel を CSV に変換する |\n| `csvToExcel(file)` | CSV を Excel に変換する |\n| `markdownToHtml(file)` | Markdown を HTML に変換する |\n| `markdownToEpub(file)` | Markdown を EPUB に変換する |
 | `name(file, ext)` | 保存先のパスだけを決める |
 
 画像の `format` は `png`、`jpg`、`webp`、`bmp`、`gif`、`tiff`、`ico`、`avif`、`jxl`、`tga`、`pnm`、`qoi` です。`options.quality` は JPG の品質です。
@@ -196,7 +203,7 @@ module.exports = function (ctx) {
 
 フォントの `format` は `ttf`、`otf`、`woff`、`woff2` です。
 
-構造物の `format` は `litematica`、`schem`、`bp`、`nbt`、`schematic` です。
+構造物の `format` は `litematica`、`schem`、`bp`、`nbt`、`schematic` です。\n\n3D の `format` は `obj`、`ply`、`off` です。
 
 JS プラグインは QuickJS の sandbox で動きます。ファイルの読み書き、ネットワーク、環境変数、プロセス起動は API に出していません。
 

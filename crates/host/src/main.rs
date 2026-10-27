@@ -1,8 +1,10 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod document;
 mod engine;
 mod gui;
 mod mcp;
+mod mesh;
 mod ui_style;
 
 use std::os::windows::process::CommandExt;

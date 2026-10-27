@@ -74,6 +74,7 @@ struct App {
     action_combo: nwg::ComboBox<String>,
     format_label: nwg::Label,
     format_combo: nwg::ComboBox<String>,
+    format_actions: RefCell<Vec<Option<ActionEntry>>>,
     output_label: nwg::Label,
     output_input: nwg::TextInput,
     browse_btn: nwg::Button,
@@ -393,7 +394,7 @@ impl App {
 
         let mut version_label = nwg::Label::default();
         nwg::Label::builder()
-            .text("v0.11.1")
+            .text("v0.11.2")
             .position((734, 496))
             .size((150, 20))
             .parent(&window)
@@ -443,6 +444,7 @@ impl App {
             action_combo,
             format_label,
             format_combo,
+            format_actions: RefCell::new(Vec::new()),
             output_label,
             output_input,
             browse_btn,
@@ -570,6 +572,26 @@ impl App {
             self.action_combo.set_selection(None);
         }
 
+        let mut choices = Vec::new();
+        let mut format_actions = Vec::new();
+        for action in &filtered {
+            if action.key() == "ffmpeg-other/convert" {
+                continue;
+            }
+            choices.push(format!(
+                "操作: {} / {}",
+                action.plugin.manifest.name, action.action.name
+            ));
+            format_actions.push(Some(action.clone()));
+        }
+        for extension in ffmpeg_formats() {
+            choices.push(extension);
+            format_actions.push(None);
+        }
+        self.format_combo.set_collection(choices);
+        let _ = self.format_combo.set_selection_string("mp4");
+        *self.format_actions.borrow_mut() = format_actions;
+
         *self.actions.borrow_mut() = filtered;
         self.update_format_visibility();
     }
@@ -602,16 +624,25 @@ impl App {
             return;
         }
 
-        let target_format = if action.key() == "ffmpeg-other/convert" {
-            match self.format_combo.selection_string() {
-                Some(value) if !value.trim().is_empty() => Some(value),
-                _ => {
-                    self.log_line("出力形式が選ばれていません。");
-                    return;
-                }
+        let (action, target_format) = if action.key() == "ffmpeg-other/convert" {
+            let selected_action = self
+                .format_combo
+                .selection()
+                .and_then(|index| self.format_actions.borrow().get(index).cloned().flatten());
+            if let Some(selected) = selected_action {
+                (selected, None)
+            } else {
+                let format = match self.format_combo.selection_string() {
+                    Some(value) if !value.trim().is_empty() => value,
+                    _ => {
+                        self.log_line("出力形式が選ばれていません。");
+                        return;
+                    }
+                };
+                (action, Some(format))
             }
         } else {
-            None
+            (action, None)
         };
 
         let out_text = self.output_input.text();

@@ -59,7 +59,7 @@ Windows 11 の新しい右クリックメニューは、パッケージ ID を�
 powershell -ExecutionPolicy Bypass -File packaging\make_release.ps1
 ```
 
-`dist\ExtensionChange-0.4.0.zip` ができます。中身は MSIX、公開証明書（`.cer`）、`install_prebuilt.ps1` です。受け取った人は zip を展開して `install.bat` をダブルクリックします。UAC の確認後、インストールされます。証明書は zip に含まれるので、受け取る側で証明書を用意する必要はありません。秘密鍵は含まれません。
+`dist\ExtensionChange-0.5.0.zip` ができます。中身は MSIX、公開証明書（`.cer`）、`install_prebuilt.ps1` です。受け取った人は zip を展開して `install.bat` をダブルクリックします。UAC の確認後、インストールされます。証明書は zip に含まれるので、受け取る側で証明書を用意する必要はありません。秘密鍵は含まれません。
 
 既存の MSIX と証明書を使う場合は `-Build` を付けません。ビルドし直す場合は `-Build` を付けます。ビルド自体に管理者権限は不要です。インストール時に証明書を信頼するため管理者権限が必要です。
 
@@ -98,6 +98,7 @@ powershell -ExecutionPolicy Bypass -File packaging\uninstall.ps1
 | --- | --- |
 | `list_actions` | 利用できる操作の一覧を返す |
 | `convert` | `action`、`files`、`output_dir` を指定して変換する |
+| `create_plugin` | JS / C# / Rust のプラグイン雛形を作る |
 
 インストール先の exe:
 
@@ -129,7 +130,7 @@ MCP クライアントの設定例:
 }
 ```
 
-`output_dir` を省略するか空にすると、入力ファイルと同じフォルダへ出力する。MCP サーバーはローカル専用で、認証はない。起動できるプロセスは、このアプリの権限でファイルを読み書きできる。
+`output_dir` を省略するか空にすると、入力ファイルと同じフォルダへ出力する。\n\n`create_plugin` は `%LOCALAPPDATA%\\ExtensionChange\\plugins\\<id>\\` に雛形を作る。`runtime` は `js`、`csharp`、`rust`。`handler` は JS のときに `image`、`video`、`audio`、`font`、`schematic`、`custom` を選ぶ。\n\n```json\n{\n  "id": "pdf-tools",\n  "name": "PDFツール",\n  "category": "PDFに変換",\n  "extensions": ["pdf"],\n  "actions": [\n    { "id": "png", "name": "PNGに変換" }\n  ],\n  "runtime": "js",\n  "handler": "custom"\n}\n```\n\n作成後はプラグイン設定から再読み込みする。C# / Rust は生成されたプロジェクトをビルドして exe をプラグインのフォルダへ置く。\n\nMCP サーバーはローカル専用で、認証はない。起動できるプロセスは、このアプリの権限でファイルを読み書きできる。
 
 ## プラグイン
 

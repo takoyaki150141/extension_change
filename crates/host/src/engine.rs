@@ -74,6 +74,120 @@ pub fn run_job(
     }
 }
 
+pub fn run_ffmpeg_other(
+    _action: &ActionEntry,
+    files: &[PathBuf],
+    output_dir: Option<PathBuf>,
+    format: &str,
+    emit: Emit,
+) -> anyhow::Result<()> {
+    let format = format.trim().trim_start_matches('.').to_ascii_lowercase();
+    if format.is_empty() || !format.chars().all(|value| value.is_ascii_alphanumeric()) {
+        bail!("invalid output format: {format}");
+    }
+    let allowed: HashSet<PathBuf> = files
+        .iter()
+        .filter_map(|path| std::fs::canonicalize(path).ok())
+        .collect();
+    if allowed.is_empty() {
+        bail!("no readable input files");
+    }
+    let context = ConvertContext {
+        allowed,
+        output_dir,
+        reserved: std::sync::Mutex::new(HashSet::new()),
+        emit: emit.clone(),
+    };
+    let ffmpeg = ffmpeg_path().ok_or_else(|| anyhow!("ffmpeg.exe が見つかりません"))?;
+    let audio_target = matches!(
+        format.as_str(),
+        "aac"
+            | "ac3"
+            | "aiff"
+            | "aif"
+            | "alac"
+            | "au"
+            | "caf"
+            | "eac3"
+            | "flac"
+            | "m4a"
+            | "mka"
+            | "mp3"
+            | "ogg"
+            | "oga"
+            | "opus"
+            | "spx"
+            | "tta"
+            | "wav"
+            | "wma"
+            | "wv"
+    );
+    let image_target = matches!(
+        format.as_str(),
+        "avif"
+            | "bmp"
+            | "dpx"
+            | "exr"
+            | "hdr"
+            | "ico"
+            | "jpeg"
+            | "jpg"
+            | "jxl"
+            | "pam"
+            | "pbm"
+            | "pcx"
+            | "pgm"
+            | "png"
+            | "pnm"
+            | "ppm"
+            | "qoi"
+            | "sgi"
+            | "tga"
+            | "tif"
+            | "tiff"
+            | "webp"
+            | "xbm"
+            | "xwd"
+    );
+
+    let total = files.len().max(1);
+    for (index, file) in files.iter().enumerate() {
+        let target = PathBuf::from(context.target_name_for(&file.to_string_lossy(), &format)?);
+        let mut command = Command::new(&ffmpeg);
+        command.creation_flags(0x0800_0000);
+        command
+            .arg("-nostdin")
+            .arg("-hide_banner")
+            .arg("-loglevel")
+            .arg("error")
+            .arg("-y")
+            .arg("-i")
+            .arg(file);
+        if image_target {
+            command.arg("-frames:v").arg("1");
+        }
+        if audio_target {
+            command.arg("-vn");
+        }
+        command.arg(&target);
+        let output = command
+            .output()
+            .with_context(|| format!("cannot start ffmpeg: {}", ffmpeg.display()))?;
+        if !output.status.success() {
+            bail!(
+                "ffmpeg failed for {}: {}",
+                file.display(),
+                String::from_utf8_lossy(&output.stderr).trim()
+            );
+        }
+        emit(JobEvent::FileDone {
+            input: file.clone(),
+            output: target,
+        });
+        emit(JobEvent::Progress((index + 1) as f32 / total as f32));
+    }
+    Ok(())
+}
 fn run_native(
     action: &ActionEntry,
     files: &[PathBuf],

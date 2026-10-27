@@ -72,6 +72,8 @@ struct App {
     files_list: nwg::ListBox<String>,
     action_label: nwg::Label,
     action_combo: nwg::ComboBox<String>,
+    format_label: nwg::Label,
+    format_combo: nwg::ComboBox<String>,
     output_label: nwg::Label,
     output_input: nwg::TextInput,
     browse_btn: nwg::Button,
@@ -279,6 +281,29 @@ impl App {
             .build(&mut action_combo)
             .map_err(err)?;
 
+        let mut format_label = nwg::Label::default();
+        nwg::Label::builder()
+            .text("出力形式（その他）")
+            .position((560, 354))
+            .size((324, 22))
+            .parent(&window)
+            .font(Some(&section_font))
+            .background_color(Some(ui_style::BG_RGB))
+            .build(&mut format_label)
+            .map_err(err)?;
+
+        let mut format_combo = nwg::ComboBox::default();
+        nwg::ComboBox::builder()
+            .collection(ffmpeg_formats())
+            .position((560, 378))
+            .size((324, 160))
+            .parent(&window)
+            .font(Some(&body_font))
+            .build(&mut format_combo)
+            .map_err(err)?;
+        let _ = format_combo.set_selection_string("mp4");
+        format_label.set_visible(false);
+        format_combo.set_visible(false);
         let mut output_label = nwg::Label::default();
         nwg::Label::builder()
             .text("出力先（空欄なら元のフォルダ）")
@@ -368,7 +393,7 @@ impl App {
 
         let mut version_label = nwg::Label::default();
         nwg::Label::builder()
-            .text("v0.10.0")
+            .text("v0.11.0")
             .position((734, 496))
             .size((150, 20))
             .parent(&window)
@@ -416,6 +441,8 @@ impl App {
             files_list,
             action_label,
             action_combo,
+            format_label,
+            format_combo,
             output_label,
             output_input,
             browse_btn,
@@ -482,6 +509,11 @@ impl App {
                     self.reload_plugins();
                 }
             }
+            nwg::Event::OnComboxBoxSelection => {
+                if &handle == &self.action_combo.handle {
+                    self.update_format_visibility();
+                }
+            }
             nwg::Event::OnNotice => self.drain_job(),
             _ => {}
         }
@@ -539,6 +571,16 @@ impl App {
         }
 
         *self.actions.borrow_mut() = filtered;
+        self.update_format_visibility();
+    }
+
+    fn update_format_visibility(&self) {
+        let generic = self
+            .selected_action()
+            .map(|action| action.key() == "ffmpeg-other/convert")
+            .unwrap_or(false);
+        self.format_label.set_visible(generic);
+        self.format_combo.set_visible(generic);
     }
 
     fn selected_action(&self) -> Option<ActionEntry> {
@@ -559,6 +601,18 @@ impl App {
             self.log_line("ファイルが選ばれていません。");
             return;
         }
+
+        let target_format = if action.key() == "ffmpeg-other/convert" {
+            match self.format_combo.selection_string() {
+                Some(value) if !value.trim().is_empty() => Some(value),
+                _ => {
+                    self.log_line("出力形式が選ばれていません。");
+                    return;
+                }
+            }
+        } else {
+            None
+        };
 
         let out_text = self.output_input.text();
         let out_text = out_text.trim().to_string();
@@ -584,7 +638,7 @@ impl App {
         self.log_list.clear();
         self.log_line(&format!("開始: {}", action.action.name));
 
-        let rx = spawn_job(&action, files, output, self.notice.sender());
+        let rx = spawn_job(&action, files, output, target_format, self.notice.sender());
         *self.job_rx.borrow_mut() = Some(rx);
     }
 
@@ -896,7 +950,7 @@ impl ProgressApp {
 
         bind_progress_handlers(&app);
 
-        let rx = spawn_job(&action, files, output, app.notice.sender());
+        let rx = spawn_job(&action, files, output, None, app.notice.sender());
         *app.rx.borrow_mut() = Some(rx);
 
         Ok(app)
@@ -992,6 +1046,7 @@ fn spawn_job(
     action: &ActionEntry,
     files: Vec<PathBuf>,
     output: Option<PathBuf>,
+    target_format: Option<String>,
     notice: nwg::NoticeSender,
 ) -> Receiver<Msg> {
     let (tx, rx) = mpsc::channel();
@@ -1003,7 +1058,17 @@ fn spawn_job(
 
     let action = action.clone();
     std::thread::spawn(move || {
-        let result = engine::run_job(&action, &files, output, emit);
+        let result = if action.key() == "ffmpeg-other/convert" {
+            engine::run_ffmpeg_other(
+                &action,
+                &files,
+                output,
+                target_format.as_deref().unwrap_or("mp4"),
+                emit,
+            )
+        } else {
+            engine::run_job(&action, &files, output, emit)
+        };
         let _ = tx.send(Msg::Done(result.map_err(|e| format!("{e:#}"))));
         notice.notice();
     });
@@ -1121,6 +1186,15 @@ fn build_settings(
         .map_err(|e| format!("failed to build button: {e}"))?;
 
     Ok((window, checks, keys, save_btn, open_btn, reload_btn))
+}
+
+fn ffmpeg_formats() -> Vec<String> {
+    include_str!("ffmpeg_formats.txt")
+        .lines()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+        .collect()
 }
 
 fn short(text: &str, max: usize) -> String {

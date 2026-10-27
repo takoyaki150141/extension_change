@@ -1,0 +1,11 @@
+{
+  "id": "ffmpeg-other",
+  "name": "その他",
+  "category": "その他",
+  "description": "GUIで出力形式を選んでFFmpegで変換します。",
+  "extensions": ["*"],
+  "actions": [
+    { "id": "convert", "name": "FFmpegで変換" }
+  ],
+  "entry": "index.js"
+}

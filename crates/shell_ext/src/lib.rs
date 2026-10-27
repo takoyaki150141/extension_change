@@ -641,6 +641,7 @@ fn category_rank(title: &str) -> i32 {
         "構造物に変換" => 50,
         "3Dに変換" => 60,
         "文書に変換" => 70,
+        "その他" => 100,
         _ => 100,
     }
 }
@@ -681,7 +682,10 @@ fn launch_host(files: &[String], action: Option<&str>) {
         command.arg("--file").arg(file);
     }
     if let Some(action) = action {
-        command.arg("--action").arg(action).arg("--run");
+        command.arg("--action").arg(action);
+        if action != "ffmpeg-other/convert" {
+            command.arg("--run");
+        }
     }
     command.creation_flags(0x0800_0000);
     let _ = command.spawn();
@@ -715,6 +719,9 @@ fn wide(text: &str) -> Vec<u16> {
 }
 
 fn matches_extension(path: &str, extensions: &[String]) -> bool {
+    if extensions.iter().any(|value| value == "*") {
+        return true;
+    }
     Path::new(path)
         .extension()
         .and_then(|ext| ext.to_str())
@@ -855,7 +862,7 @@ mod tests {
                     .expect("GetState")
             };
             assert_eq!(state(&png), ECS_ENABLED);
-            assert_eq!(state(&txt), ECS_HIDDEN);
+            assert_eq!(state(&txt), ECS_ENABLED);
             windows::Win32::System::Com::CoUninitialize();
         }
     }

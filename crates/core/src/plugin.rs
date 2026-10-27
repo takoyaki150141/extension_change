@@ -83,6 +83,9 @@ impl ActionEntry {
     }
 
     pub fn matches_extension(&self, ext: &str) -> bool {
+        if self.plugin.manifest.extensions.iter().any(|value| value == "*") {
+            return true;
+        }
         let ext = ext.trim_start_matches('.').to_ascii_lowercase();
         self.plugin
             .manifest

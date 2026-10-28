@@ -361,6 +361,8 @@ impl App {
             .build(&mut progress)
             .map_err(err)?;
 
+        ui_style::progress_colors(&progress);
+
         let mut footer_bg = nwg::Label::default();
         nwg::Label::builder()
             .text("")
@@ -394,7 +396,7 @@ impl App {
 
         let mut version_label = nwg::Label::default();
         nwg::Label::builder()
-            .text("v0.11.4")
+            .text("v0.11.5")
             .position((734, 496))
             .size((150, 20))
             .parent(&window)
@@ -962,6 +964,8 @@ impl ProgressApp {
             .map_err(err)?;
 
         ui_style::apply_chrome(&window);
+        ui_style::set_window_background(&window, [255, 255, 255]);
+        ui_style::progress_colors(&progress);
         ui_style::marquee(&progress, true);
 
         let app = Rc::new(ProgressApp {

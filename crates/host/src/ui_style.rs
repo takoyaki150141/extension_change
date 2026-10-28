@@ -128,6 +128,18 @@ pub fn apply_chrome(window: &nwg::Window) {
     }
 }
 
+pub fn progress_colors(progress: &nwg::ProgressBar) {
+    let Some(hwnd) = progress.handle.hwnd().map(|h| HWND(h as *mut c_void)) else {
+        return;
+    };
+    let accent = accent_rgb();
+    let accent_ref = (accent[0] as u32) | ((accent[1] as u32) << 8) | ((accent[2] as u32) << 16);
+    unsafe {
+        SendMessageW(hwnd, 0x2001, Some(WPARAM(0)), Some(LPARAM(0x00FF_FFFF)));
+        SendMessageW(hwnd, 0x2009, Some(WPARAM(0)), Some(LPARAM(accent_ref as isize)));
+    }
+}
+
 pub fn marquee(progress: &nwg::ProgressBar, running: bool) {
     let Some(hwnd) = progress.handle.hwnd().map(|h| HWND(h as *mut c_void)) else {
         return;

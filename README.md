@@ -67,7 +67,7 @@ Windows 11 では新しい右クリックメニュー、Windows 10 ではクラ�
 powershell -ExecutionPolicy Bypass -File packaging\make_release.ps1
 ```
 
-`dist\ExtensionChange-0.11.4.zip` ができます。中身は MSIX、App Installer 用の `ExtensionChange.appinstaller`、公開証明書（`.cer`）、`install.bat`、`install_prebuilt.ps1`、`register_classic.ps1` です。受け取った人は zip を展開して `install.bat` をダブルクリックします。UAC の確認後、インストールされます。証明書は zip に含まれるので、受け取る側で証明書を用意する必要はありません。秘密鍵は含まれません。
+`dist\ExtensionChange-0.11.5.zip` ができます。中身は MSIX、App Installer 用の `ExtensionChange.appinstaller`、公開証明書（`.cer`）、`install.bat`、`install_prebuilt.ps1`、`register_classic.ps1` です。受け取った人は zip を展開して `install.bat` をダブルクリックします。UAC の確認後、インストールされます。証明書は zip に含まれるので、受け取る側で証明書を用意する必要はありません。秘密鍵は含まれません。
 
 既存の MSIX と証明書を使う場合は `-Build` を付けません。ビルドし直す場合は `-Build` を付けます。ビルド自体に管理者権限は不要です。インストール時に証明書を信頼するため管理者権限が必要です。
 
